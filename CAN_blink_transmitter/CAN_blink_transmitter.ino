@@ -12,7 +12,7 @@ void setup() {
   Serial.begin(115200); delay(400);
   can1.begin();
   can1.setBaudRate(250000);
-  can1.setMB(MB11,TX);
+  can1.setMB(MB9,TX);
   
   
 }
