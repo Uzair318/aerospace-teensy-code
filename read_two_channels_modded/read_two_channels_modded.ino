@@ -4,6 +4,7 @@ FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> can1;
 CAN_message_t msg;
 
 void setup(void) {
+  Serial.begin(115200);
   can1.begin();
   can1.setBaudRate(250000);
 }
@@ -22,4 +23,5 @@ void loop() {
     }
     Serial.print("  TS: "); Serial.println(msg.timestamp);
   }
+  can1.mailboxStatus();
 }

@@ -13,17 +13,26 @@ void setup() {
   can1.begin();
   can1.setBaudRate(250000);
   can1.setMB(MB9,TX);
-  
-  
+
+//  blinkNumber = 5;
+//  for(uint8_t i = 0; i < 8; i++) {
+//    msg.buf[i] = i;
+//  }
+//  msg.buf[0] = blinkNumber;
+//  can1.write(MB9, msg);
+//  can1.mailboxStatus();
+//  Serial.write("Sent ");
 }
 
 void loop() {
-//  for ( uint8_t i = 0; i < msg.len; i++ ) {
-//    Serial.print(msg.buf[i], DEC); Serial.print(" ");
-//  } Serial.println();
-  if (Serial.available() > 0) {
-    blinkNumber = Serial.parseInt();
+//  if (Serial.available() > 0) {
+    blinkNumber = 5;//Serial.parseInt();
+    msg.id = MB11;
+    for(uint8_t i = 0; i < 8; i++) {
+      msg.buf[i] = i;
+    }
     msg.buf[0] = blinkNumber;
     can1.write(MB9, msg);
-  }
+    can1.mailboxStatus();
+//  }
 }
