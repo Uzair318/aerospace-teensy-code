@@ -11,17 +11,8 @@ uint8_t blinkNumber;
 void setup() {
   Serial.begin(115200); delay(400);
   can1.begin();
-  can1.setBaudRate(250000);
+  can1.setBaudRate(250000); //CAN baudrate must be lower than Serial
   can1.setMB(MB9,TX);
-
-  blinkNumber = 5;
-  for(uint8_t i = 0; i < 8; i++) {
-    msg.buf[i] = i;
-  }
-  msg.buf[0] = blinkNumber;
-  can1.write(MB9, msg);
-  can1.mailboxStatus();
-  Serial.write("Sent ");
 }
 
 void loop() {
