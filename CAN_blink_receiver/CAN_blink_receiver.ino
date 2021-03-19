@@ -9,9 +9,9 @@ const int ledPin = LED_BUILTIN;
 CAN_message_t msg;
 
 void setup() {
-//  Serial.begin(115200); delay(400);
+  Serial.begin(115200); delay(400);
   can1.begin();
-  can1.setBaudRate(250000);
+  can1.setBaudRate(1000000);
 //  can1.setMB(MB11,RX,STD);
 ////  can1.onReceive(MB11, canSniff);
 }
@@ -19,16 +19,16 @@ void setup() {
 void loop() {
   can1.mailboxStatus();
   if ( can1.read(msg) ) {
-//    Serial.print("CAN1 "); 
-//    Serial.print("MB: "); Serial.print(msg.mb);
-//    Serial.print("  ID: 0x"); Serial.print(msg.id, HEX );
-//    Serial.print("  EXT: "); Serial.print(msg.flags.extended );
-//    Serial.print("  LEN: "); Serial.print(msg.len);
-//    Serial.print(" DATA: ");
-//    for ( uint8_t i = 0; i < 8; i++ ) {
-//      Serial.print(msg.buf[i]); Serial.print(" ");
-//    }
-//    Serial.print("  TS: "); Serial.println(msg.timestamp);
+    Serial.print("CAN1 "); 
+    Serial.print("MB: "); Serial.print(msg.mb);
+    Serial.print("  ID: 0x"); Serial.print(msg.id, HEX );
+    Serial.print("  EXT: "); Serial.print(msg.flags.extended );
+    Serial.print("  LEN: "); Serial.print(msg.len);
+    Serial.print(" DATA: ");
+    for ( uint8_t i = 0; i < 8; i++ ) {
+      Serial.print(msg.buf[i]); Serial.print(" ");
+    }
+    Serial.print("  TS: "); Serial.println(msg.timestamp);
     uint8_t blinkNum = msg.buf[0];
     for(int i = 0; i < blinkNum; i++) {
       digitalWrite(ledPin, HIGH);
