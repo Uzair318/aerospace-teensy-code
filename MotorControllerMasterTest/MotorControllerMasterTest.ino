@@ -6,30 +6,15 @@ FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> can1;
 void canSniff(const CAN_message_t &msg);
 
 void setup() {
-    Serial.begin(9600);
+    Serial.begin(115200);
     can1.begin();
-    can1.setBaudRate(1000000);
+    can1.setBaudRate(250000);
     can1.enableFIFO();
     can1.enableFIFOInterrupt();
     can1.onReceive(FIFO, canSniff);
     delay(1000);
     Serial.println("CAN setup finished");
     delay(500);
-    Serial.println("Sending ...");
-    CAN_message_t msg;
-    msg.len = 8;
-    msg.id = 0x0601;  // 0x600 + node_id (SDO client to server)
-    msg.buf[0] = 40;    // ccs = 2 (read object)
-    msg.buf[1] = 0x18;  // index low byte
-    msg.buf[2] = 0x10;  // index high byte
-    msg.buf[3] = 0x01;  // subindex
-    msg.buf[4] = 0;
-    msg.buf[5] = 0;
-    msg.buf[6] = 0;
-    msg.buf[7] = 0;
-
-    can1.write(msg);
-    Serial.println("Message sent");
 }
 
 void loop() {
