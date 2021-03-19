@@ -29,13 +29,20 @@ void loop() {
       Serial.print("0x"); Serial.print(msg.buf[i], HEX); Serial.print(" ");
     }
     Serial.print("  TS: "); Serial.println(msg.timestamp);
-    uint8_t blinkNum = msg.buf[0];
-    for(int i = 0; i < blinkNum; i++) {
-      digitalWrite(ledPin, HIGH);
-      delay(500);
-      digitalWrite(ledPin, LOW);
-      delay(200);
+//    uint8_t blinkNum = msg.buf[0];
+//    for(int i = 0; i < blinkNum; i++) {
+//      digitalWrite(ledPin, HIGH);
+//      delay(500);
+//      digitalWrite(ledPin, LOW);
+//      delay(200);
+//    }
+    delay(100);
+    msg.id = MB11;
+    for(uint8_t i = 0; i < 8; i++) {
+        msg.buf[i] = i;
     }
-    delay(1000);
+    can1.write(MB9, msg);
+    Serial.println("replying...");
+    delay(400);
   }
 }
