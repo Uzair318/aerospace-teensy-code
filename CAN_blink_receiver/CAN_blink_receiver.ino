@@ -11,13 +11,13 @@ CAN_message_t msg;
 void setup() {
   Serial.begin(115200); delay(400);
   can1.begin();
-  can1.setBaudRate(1000000);
-//  can1.setMB(MB11,RX,STD);
+  can1.setBaudRate(250000);
+  can1.setMB(MB11,RX,STD);
 ////  can1.onReceive(MB11, canSniff);
 }
 
 void loop() {
-  can1.mailboxStatus();
+//  can1.mailboxStatus();
   if ( can1.read(msg) ) {
     Serial.print("CAN1 "); 
     Serial.print("MB: "); Serial.print(msg.mb);
