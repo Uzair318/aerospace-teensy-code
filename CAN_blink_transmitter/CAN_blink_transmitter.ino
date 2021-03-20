@@ -26,7 +26,7 @@ void loop() {
       }
       msg.buf[0] = blinkNumber;
       can1.write(MB9, msg);
-      can1.mailboxStatus();
+//      can1.mailboxStatus();
     }
   }
 }
