@@ -43,6 +43,6 @@ void loop() {
     }
     can1.write(MB9, msg);
     Serial.println("replying...");
-    delay(400);
+//    delay(400);
   }
 }
