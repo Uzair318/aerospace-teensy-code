@@ -18,6 +18,7 @@ void setup() {
 }
 
 void loop() {
+  can1.events();
     if (Serial.available()) {
         char c = Serial.read();
         if (c == 'a') {
@@ -35,9 +36,10 @@ void loop() {
             msg.buf[7] = 0;
 
             can1.write(msg);
+            c = 'b';
         }
     }
-    delay(100);
+//    delay(100);
 }
 
 void canSniff(const CAN_message_t &msg) {
