@@ -3,3 +3,4 @@ teensy.exe
 blink_both/
 *.log
 .DS_Store
+.vscode/
