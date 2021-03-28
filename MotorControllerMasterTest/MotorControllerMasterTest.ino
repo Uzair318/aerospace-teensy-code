@@ -1,8 +1,8 @@
 #include "CAN_interpreter.h"
 
 FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> can1;
-CAN_Interpreter CAN_int;
-char[32] command;
+CAN_interpreter CAN_int;
+char command[32];
 void canSniff(const CAN_message_t &msg);
 
 void setup() {
@@ -26,7 +26,16 @@ void loop() {
       String input = Serial.readString();
       input.toCharArray(command, 32);
       CAN_message_t msg;
-      int err = CAN_int.createMsg(input, &msg);
+      int err = CAN_int.createMsg(command, &msg);   
+      Serial.println("Sending...");
+      CAN_int.interpretMsg(msg);
+      if(err > 0) {
+        Serial.print("error:");
+        Serial.println(err);
+      } else {
+        can1.write(msg);
+      }
+      
 //        char c = Serial.read();
 //        if (c == 'a') {
 //            Serial.println("Sending ...");
@@ -196,12 +205,11 @@ void loop() {
 //            msg.buf[7] = 0x00;
 //            can1.write(msg);
 //            c = 'z';
-        }
+//        }
     }
 }
 
 void canSniff(const CAN_message_t &msg) {
-  CAN_int.interpretMsg(&msg);
 //    Serial.println("Interrupted");
 //    Serial.print("MB ");
 //    Serial.print(msg.mb);
@@ -221,4 +229,7 @@ void canSniff(const CAN_message_t &msg) {
 //        Serial.print(" ");
 //    }
 //    Serial.println();
+    Serial.println("Received...");
+    CAN_int.interpretMsg(msg);
+
 }
