@@ -188,17 +188,20 @@ uint8_t CAN_interpreter::startup(FlexCAN_T4 &can1){
     char input[32] = "6041,00,x0000r";  // statusword
     int err = this.createMsg(input, &msg)
     if(err > 0) {
-        Serial.print("error:");
+        Serial.print("error before while loop in CAN_interpreter.startup():");
         Serial.println(err);
       } else {
         Serial.println("Sending...");
         this.interpretMsg(msg);
         can1.write(msg);
     } 
-    // check the response 
-    this.interpretMsg(_res);
-    // while statusword is not "operation enabled" 
 
+    // check the response and update the state
+    this.interpretMsg(_res);
+    uint32_t resData = _res.buf[0] | (_res.buf[1] << 8) | (_res.buf[2] << 16) | (_res.buf[3] << 24);
+    this.setState(resData);
+
+    // while statusword is not "operation enabled" 
     while(state != OperationEnabled) {
         // transition from the current state to the next state (and verify?)
         switch(state) {
@@ -297,7 +300,29 @@ uint8_t CAN_interpreter::startup(FlexCAN_T4 &can1){
                 Serial.println
             
         }
+
+        // send statusword   
+        Serial.println("Checking Statusword...");
+        char input[32] = "6041,00,x0000r";  // statusword
+        int err = this.createMsg(input, &msg)
+        if(err > 0) {
+            Serial.print("error within while loop in CAN_interpreter.startup():");
+            Serial.println(err);
+        } else {
+            Serial.println("Sending...");
+            this.interpretMsg(msg);
+            can1.write(msg);
+        } 
+
+        // check the response and update the state
+        this.interpretMsg(_res);
+        resData = _res.buf[0] | (_res.buf[1] << 8) | (_res.buf[2] << 16) | (_res.buf[3] << 24);
+
+        this.setState(resData);
     }
+
+    Serial.println("Setup Complete: Controller in Operation Enabled state");
+    return 0;
 }
 void CAN_interpreter::setResponse(CAN_message_t msg_ptr){
     _res = msg_ptr;

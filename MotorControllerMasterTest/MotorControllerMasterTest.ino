@@ -13,7 +13,7 @@ void setup() {
     can1.enableFIFOInterrupt();
     can1.onReceive(FIFO, canSniff);
 
-    CAN_interpreter.startup(msg&, can1&);
+    CAN_interpreter.startup(can1);
     Serial.println("CAN setup finished");
  
 }
@@ -40,7 +40,7 @@ void loop() {
 void canSniff(const CAN_message_t &msg) {
     Serial.println("Received...");
     CAN_int.interpretMsg(msg);
-    
+    CAN_int.setResponse(msg);
 //    Serial.println("Interrupted");
 //    Serial.print("MB ");
 //    Serial.print(msg.mb);
