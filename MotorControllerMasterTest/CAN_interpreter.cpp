@@ -186,7 +186,7 @@ uint8_t CAN_interpreter::startup(FlexCAN_T4 &can1){
     // send statusword   
     Serial.println("Checking Statusword...");
     char input[32] = "6041,00,x0000r";  // statusword
-    int err = this.createMsg(input, &ms)
+    int err = this.createMsg(input, &msg)
     if(err > 0) {
         Serial.print("error:");
         Serial.println(err);
@@ -197,36 +197,104 @@ uint8_t CAN_interpreter::startup(FlexCAN_T4 &can1){
     } 
     // check the response 
     this.interpretMsg(_res);
-    uint8_t state = 0;
     // while statusword is not "operation enabled" 
 
-    while(state != SwitchedOn) {
+    while(state != OperationEnabled) {
         // transition from the current state to the next state (and verify?)
         switch(state) {
             case NotReadyToSwitchOn:
-
+                Serial.println("Not Ready To Switch On");
+                char input[32] = "6040,00,b1111w";  // send controlword THIS ONE MIGHT BE WRONG
+                int err = this.createMsg(input, &msg)
+                if(err > 0) {
+                    Serial.print("error in NotReadyToSwitchOn case of CAN_interpreter.startup():");
+                    Serial.println(err);
+                } else {
+                    Serial.println("Sending controlword to execute transition 1...");
+                    this.interpretMsg(msg);
+                    can1.write(msg);
+                } 
                 break;
             case SwitchOnDisabled:
-
+                Serial.println("Switch On Disabled");
+                char input[32] = "6040,00,b0110w";  // send controlword 
+                int err = this.createMsg(input, &msg)
+                if(err > 0) {
+                    Serial.print("error in SwitchOnDisabled case of CAN_interpreter.startup():");
+                    Serial.println(err);
+                } else {
+                    Serial.println("Sending controlword to execute transition 2...");
+                    this.interpretMsg(msg);
+                    can1.write(msg);
+                } 
                 break;
             case ReadyToSwitchOn:
-
+                Serial.println("Ready to Switch On");
+                char input[32] = "6040,00,b0111w";  // send controlword 
+                int err = this.createMsg(input, &msg)
+                if(err > 0) {
+                    Serial.print("error in ReadyToSwitchOn case of CAN_interpreter.startup():");
+                    Serial.println(err);
+                } else {
+                    Serial.println("Sending controlword to execute transition 3...");
+                    this.interpretMsg(msg);
+                    can1.write(msg);
+                }
                 break;
             case SwitchedOn:
-
-                break;
-            case OperationEnabled:
-
+                Serial.println("Switched On");
+                char input[32] = "6040,00,b1111w";  // send controlword 
+                int err = this.createMsg(input, &msg)
+                if(err > 0) {
+                    Serial.print("error in SwitchedOn case of CAN_interpreter.startup():");
+                    Serial.println(err);
+                } else {
+                    Serial.println("Sending controlword to execute transition 4...");
+                    this.interpretMsg(msg);
+                    can1.write(msg);
+                }
                 break;
             case QuickStopActive:
-
+                Serial.println("Quick Stop Active");
+                char input[32] = "6040,00,b1111w";  // send controlword 
+                int err = this.createMsg(input, &msg)
+                if(err > 0) {
+                    Serial.print("error in QuickStopActive case of CAN_interpreter.startup():");
+                    Serial.println(err);
+                } else {
+                    Serial.println("Sending controlword to execute transition 16...");
+                    this.interpretMsg(msg);
+                    can1.write(msg);
+                }
                 break;
             case FaultReactionActive:
-
+                Serial.println("Fault Reaction Active");
+                char input[32] = "6040,00,b00000000w";  // send controlword 
+                int err = this.createMsg(input, &msg)
+                if(err > 0) {
+                    Serial.print("error in FaultReactionActive case of CAN_interpreter.startup():");
+                    Serial.println(err);
+                } else {
+                    Serial.println("Sending controlword to execute transition 14...");
+                    this.interpretMsg(msg);
+                    can1.write(msg);
+                }
                 break;
             case Fault:
-
+                Serial.println("Fault");
+                char input[32] = "6040,b10000000w";  // send controlword 
+                int err = this.createMsg(input, &msg)
+                if(err > 0) {
+                    Serial.print("error in Fault case of CAN_interpreter.startup():");
+                    Serial.println(err);
+                } else {
+                    Serial.println("Sending controlword to execute transition 15...");
+                    this.interpretMsg(msg);
+                    can1.write(msg);
+                }
                 break;
+            case default:
+                Serial.println
             
         }
     }
