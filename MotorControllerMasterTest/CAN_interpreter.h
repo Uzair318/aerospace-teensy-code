@@ -15,12 +15,14 @@ class CAN_interpreter
 {
   public:
     CAN_interpreter();
-    enum state_t{NotReadyToSwitchOn, SwitchOnDisabled, ReadyToSwitchOn, SwitchedOn, OperationEnabled, QuickStopActive, FaultReactionActive, Fault};
+    enum state_t{NotReadyToSwitchOn, SwitchOnDisabled, ReadyToSwitchOn, SwitchedOn, OperationEnabled,
+      QuickStopActive, FaultReactionActive, Fault, notRecognized};
     state_t state;
     uint8_t createMsg(char *input_ptr,CAN_message_t *msg_ptr);
     void interpretMsg(CAN_message_t msg_ptr);
     uint8_t CAN_interpreter::startup(FlexCAN_T4 &can1);
     void setResponse(CAN_message_t msg_ptr);
+    void setState(uint32_t word);
   private:
     CAN_message_t _res; // response that will be checked
     //char _input[32];

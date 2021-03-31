@@ -303,6 +303,58 @@ void CAN_interpreter::setResponse(CAN_message_t msg_ptr){
     _res = msg_ptr;
 }
 
-void CAN_interpreter::setState() {
-    
+void CAN_interpreter::setState(uint32_t word) {
+    // we only care about bits 0,1,2,3,5,6
+    // set all other bits to 0
+    //        76543210
+    word &= 0b01101111;
+
+    switch(word) {
+
+        // Not ready to switch on
+        case 0b00000000:
+            state = NotReadyToSwitchOn;
+            break;
+
+        // Switch on disabled 
+        case 0b01000000:
+            state = SwitchOnDisabled;
+            break;
+
+        // Ready to switch on
+        case 0b00100001:
+            state = ReadyToSwitchOn;
+            break;
+
+        // Switched on
+        case 0b00100011:
+            state = SwitchedOn;
+            break;;
+
+        // Operation enabled
+        case 0b00100111:
+            state = OperationEnabled;
+            break;
+
+        // Quick stop active
+        case 0b00000111:
+            state = QuickStopActive;
+            break;
+
+        // Fault reaction active
+        case 0b00001111:
+            state = FaultReactionActive;
+            break;
+
+        // Fault
+        case 0b00001000:
+            state = Fault;
+            break;
+
+        //set an error if the state isn't recognized
+        default:
+            state = notRecognized;
+            break;
+        }
+    }
 }
