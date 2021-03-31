@@ -1,6 +1,6 @@
 /*
     CAN interpreter library to take user input and create Flexcan4 messages for Maxon EPOS4 controller
-    Alex Broz
+    Alex Broz, Uzair Ahmed
     Input format is INDEX,  SUBINDEX,DATA,w/r
 
     INDEX and SUBINDEX in hexadecimal, chars 1-4
@@ -16,6 +16,10 @@
 #include "CAN_interpreter.h"
 
 CAN_interpreter::CAN_interpreter(){}
+
+enum state_t{NotReadyToSwitchOn, SwitchOnDisabled, ReadyToSwitchOn, SwitchedOn, OperationEnabled, QuickStopActive, FaultReactionActive, Fault};
+
+state_t state;
 
 uint8_t CAN_interpreter::createMsg(char _input[],CAN_message_t *msg_ptr){
     //_input = input_ptr;
@@ -173,4 +177,64 @@ void CAN_interpreter::interpretMsg(CAN_message_t msg_ptr){
     Serial.print("DEC: ");
     Serial.println(_data);
     Serial.println();
+}
+
+uint8_t CAN_interpreter::startup(FlexCAN_T4 &can1){
+    CAN_message_t msg;
+    Serial.println("Running setup...");
+
+    // send statusword   
+    Serial.println("Checking Statusword...");
+    char input[32] = "6041,00,x0000r";  // statusword
+    int err = this.createMsg(input, &ms)
+    if(err > 0) {
+        Serial.print("error:");
+        Serial.println(err);
+      } else {
+        Serial.println("Sending...");
+        this.interpretMsg(msg);
+        can1.write(msg);
+    } 
+    // check the response 
+    this.interpretMsg(_res);
+    uint8_t state = 0;
+    // while statusword is not "operation enabled" 
+
+    while(state != SwitchedOn) {
+        // transition from the current state to the next state (and verify?)
+        switch(state) {
+            case NotReadyToSwitchOn:
+
+                break;
+            case SwitchOnDisabled:
+
+                break;
+            case ReadyToSwitchOn:
+
+                break;
+            case SwitchedOn:
+
+                break;
+            case OperationEnabled:
+
+                break;
+            case QuickStopActive:
+
+                break;
+            case FaultReactionActive:
+
+                break;
+            case Fault:
+
+                break;
+            
+        }
+    }
+}
+void CAN_interpreter::setResponse(CAN_message_t msg_ptr){
+    _res = msg_ptr;
+}
+
+void CAN_interpreter::setState() {
+    
 }
