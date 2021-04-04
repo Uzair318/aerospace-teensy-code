@@ -1,6 +1,7 @@
 /*
     CAN interpreter library to take user input and create Flexcan4 messages for Maxon EPOS4 controller
     Alex Broz
+    Uzair Ahmed
 */
 #ifndef CAN_interpreter_h
 #define CAN_interpreter_h
@@ -20,11 +21,15 @@ class CAN_interpreter
     state_t state;
     uint8_t createMsg(char *input_ptr,CAN_message_t *msg_ptr);
     void interpretMsg(CAN_message_t msg_ptr);
-    uint8_t CAN_interpreter::startup(FlexCAN_T4 &can1);
+    uint8_t startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1);
     void setResponse(CAN_message_t msg_ptr);
-    void setState(uint32_t word);
+    void setState(CAN_message_t &message);
+    void awaitResponse();
+    bool newMessage;
+
   private:
     CAN_message_t _res; // response that will be checked
+    uint8_t err;
     //char _input[32];
     // CAN_message_t _msg;
     // char _temp[33];
