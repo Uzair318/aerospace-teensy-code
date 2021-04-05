@@ -9,6 +9,10 @@
 #include "Arduino.h"
 #include "FlexCAN_T4.h"
 #include <stdlib.h>
+#include <math.h>
+
+#define MAX_TRAJECTORY 1500
+#define RAD_TO_TICKS 102943.7081
 
 
 
@@ -23,17 +27,31 @@ class CAN_interpreter
     void interpretMsg(CAN_message_t msg_ptr);
     uint8_t startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1);
     void setResponse(CAN_message_t msg_ptr);
-    void setState(CAN_message_t &message);
+    void getState(CAN_message_t &message);
     void awaitResponse();
+    void setTrajectoryParams(double f, double v, double a);
+    uint8_t genTrajectory(double target_rad, bool absolute);
     bool newMessage;
+    int32_t trajectory[MAX_TRAJECTORY];
+    uint16_t trajectoryLength;
+    int32_t position;
+    int32_t target;    // encoder increments
 
   private:
     CAN_message_t _res; // response that will be checked
     uint8_t err;
-    //char _input[32];
-    // CAN_message_t _msg;
-    // char _temp[33];
-    // uint8_t _length = 0;
-    // uint32_t _data;
+    double freq = 100; // Hz
+    double maxV = 20;  // centi rad/s
+    double maxA = 40;  // centi rad/s^2
+
+    // for trajectory generation
+    double T;
+    double t = 0;
+    double Tc;
+    double T_pi2;
+    double pi_T;
 };
+
+
+
 #endif

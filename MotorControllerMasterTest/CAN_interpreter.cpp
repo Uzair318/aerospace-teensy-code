@@ -17,12 +17,11 @@
 
 CAN_interpreter::CAN_interpreter(){}
 
-enum state_t{NotReadyToSwitchOn, SwitchOnDisabled, ReadyToSwitchOn, SwitchedOn, OperationEnabled, QuickStopActive, FaultReactionActive, Fault};
 
-state_t state;
-
+// Can we get rid of this?? v
 char input[32];
 
+// Create a FLEXCAN_T4 message from char array input
 uint8_t CAN_interpreter::createMsg(char _input[],CAN_message_t *msg_ptr){
     //_input = input_ptr;
     CAN_message_t _msg;
@@ -136,6 +135,7 @@ uint8_t CAN_interpreter::createMsg(char _input[],CAN_message_t *msg_ptr){
     return 0;
 }
 
+// Print all info from FLEXCAN_T4 message
 void CAN_interpreter::interpretMsg(CAN_message_t message){
     CAN_message_t _msg;
     uint32_t _data;
@@ -181,6 +181,7 @@ void CAN_interpreter::interpretMsg(CAN_message_t message){
     Serial.println();
 }
 
+// Run setup commands for controller
 uint8_t CAN_interpreter::startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1){
     CAN_message_t msg;
     Serial.println("Running setup...");
@@ -202,7 +203,7 @@ uint8_t CAN_interpreter::startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1
 
     // check the response and update the state
     this->interpretMsg(_res);
-    this->setState(_res);
+    this->getState(_res);
 
     // while statusword is not "operation enabled" 
     while(state != OperationEnabled) {
@@ -343,17 +344,19 @@ uint8_t CAN_interpreter::startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1
 
         // check the response and update the state
         this->interpretMsg(_res);
-        this->setState(_res);
+        this->getState(_res);
     }
 
     Serial.println("Setup Complete: Controller in Operation Enabled state");
     return 0;
 }
 
+// set the incoming CAN message
 void CAN_interpreter::setResponse(CAN_message_t msg_ptr){
     _res = msg_ptr;
 }
 
+// Delay until a new message is received
 void CAN_interpreter::awaitResponse(){
     while(!newMessage){
         delay(10);
@@ -361,8 +364,8 @@ void CAN_interpreter::awaitResponse(){
     newMessage = false;
 }
 
-void CAN_interpreter::setState(CAN_message_t &message) {
-    
+// Get driver state from CAN message
+void CAN_interpreter::getState(CAN_message_t &message) {
     
     uint32_t word = message.buf[0] | (message.buf[1] << 8) | (message.buf[2] << 16) | (message.buf[3] << 24);
 
@@ -418,4 +421,90 @@ void CAN_interpreter::setState(CAN_message_t &message) {
             state = notRecognized;
             break;
     };
+}
+
+// Set trajectory parameters using centirad for V and A
+void CAN_interpreter::setTrajectoryParams(double f, double v, double a){
+    freq = f;
+    maxV = v * RAD_TO_TICKS;
+    maxA = a * RAD_TO_TICKS;
+};
+
+// generate trajectory
+// absolute = true: treat input as absolute target position
+// absolute = false: treat input as change in position
+uint8_t CAN_interpreter::genTrajectory(double target_rad, bool absolute = true){
+    // convert target from rads to encoder ticks
+    target = (int32_t) (target_rad * RAD_TO_TICKS);
+
+    // change target if not using absolute position
+    if(!absolute){
+        target += position;
+    }
+    
+    T = maxV / maxA;
+    Tc = (abs(target - position) - maxV*T) / (maxA*t);
+
+    // CASE 1: constant velocity section
+    if(Tc > 0){
+        // constants for easier writing
+        T_pi2 = pow(T/(2*M_PI),2);
+        pi_T = 2*M_PI/T;
+
+        // calculate array length and make sure it is not too long
+        trajectoryLength = (uint16_t) ((2*T+Tc) / freq);
+        if(trajectoryLength >= MAX_TRAJECTORY){
+            Serial.println("Trajectory too long. (Const. V)");
+            return 1;
+        }
+
+        // calculate trajectory
+        for(uint16_t i = 0; i <= trajectoryLength; i++){
+            t = i / freq;
+
+            // first section - acceleration
+            if(t >= 0 && t <T){
+                trajectory[i] = position + (int32_t) (maxA * (pow(t,2)/2 + T_pi2*cos(pi_T*t) - T_pi2));
+            }
+            // second section - constant velocity
+            else if(t >= T && t <= T+Tc){
+                trajectory[i] = position + (int32_t) (maxA * (pow(T,2)/2 + T*(t-T)));
+            }
+            // third section - deceleration
+            else{
+                trajectory[i] = position + (int32_t) (maxA * (pow(T,2)/2 + T*Tc + maxV*(t-T-Tc) - pow(t-T-Tc,2)/2 + T_pi2*cos(pi_T*(t-T-Tc)) - T_pi2));
+            }
+        }
+    }
+    // CASE 2: no constant velocity section
+    else{
+        // recalculate the period
+        T = sqrt(abs(target - position) / maxA);
+
+        // calculate array length and make sure it is not too long
+        trajectoryLength = (uint16_t) ((2*T) / freq);
+        if(trajectoryLength >= MAX_TRAJECTORY){
+            Serial.println("Trajectory too long. (No Const. V)");
+            return 2;
+        }
+        
+        // constants for easier writing
+        T_pi2 = pow(T/(2*M_PI),2);
+        pi_T = 2*M_PI/T;
+
+        // calculate trajectory`
+        for(uint16_t i = 0; i <= trajectoryLength; i++){
+            t = i / freq;
+
+            // first section - acceleration (same as above)
+            if(t >= 0 && t <T){
+                trajectory[i] = position + (int32_t) (maxA * (pow(t,2)/2 + T_pi2*cos(pi_T*t) - T_pi2));
+            }
+            // second section - deceleration
+            else{
+                trajectory[i] = position + (int32_t) (maxA * (pow(T,2)/2 + T*(t-T) - pow(t-T,2)/2 + T_pi2*cos(pi_T*(t-T)) - T_pi2));
+            }
+        }
+    }
+    return 0;
 }
