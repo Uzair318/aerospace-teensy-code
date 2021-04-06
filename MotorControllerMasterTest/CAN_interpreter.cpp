@@ -15,11 +15,21 @@
 
 #include "CAN_interpreter.h"
 
-CAN_interpreter::CAN_interpreter(){}
+CAN_interpreter::CAN_interpreter(void (*cb)()){
+    can.begin();
+    can.setBaudRate(250000);
+    can.enableFIFO();
+    can.enableFIFOInterrupt();
+    can.onReceive(FIFO, *cb);
+}
 
+// void CAN_interpreter::canSniff(const CAN_message_t &msg) {
+//     Serial.println("Received...");
+//     this->interpretMsg(msg);
+//     this->setResponse(msg);
+//     this->newMessage = true;
+// }
 
-// Can we get rid of this?? v
-char input[32];
 
 // Create a FLEXCAN_T4 message from char array input
 uint8_t CAN_interpreter::createMsg(char _input[],CAN_message_t *msg_ptr){
@@ -182,13 +192,14 @@ void CAN_interpreter::interpretMsg(CAN_message_t message){
 }
 
 // Run setup commands for controller
-uint8_t CAN_interpreter::startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1){
+uint8_t CAN_interpreter::startup(){
     CAN_message_t msg;
     Serial.println("Running setup...");
 
     // send statusword   
     Serial.println("Checking Statusword...");
-    char input[32] = "6041,00,x0000r";  // statusword
+    // input = "6041,00,x0000r";  // statusword
+    strcpy(input, "6041,00,x0000r");
     err = this->createMsg(input, &msg);
     if(err > 0) {
         Serial.print("error before while loop in CAN_interpreter.startup():");
@@ -196,13 +207,17 @@ uint8_t CAN_interpreter::startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1
         return 1;
       } else {
         Serial.println("Sending...");
-        this->interpretMsg(msg);
-        can1.write(msg);
+        // this->interpretMsg(msg);
+        can.write(msg);
         this->awaitResponse();
+        // Serial.println("waiting for response....");
+        // delay(1000);
+        // can.events();
+        // this->interpretMsg(_res);
     }
 
     // check the response and update the state
-    this->interpretMsg(_res);
+    // this->interpretMsg(_res);
     this->getState(_res);
 
     // while statusword is not "operation enabled" 
@@ -220,8 +235,8 @@ uint8_t CAN_interpreter::startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1
                     return 1;
                 } else {
                     Serial.println("Sending controlword to execute transition 1...");
-                    this->interpretMsg(msg);
-                    can1.write(msg);
+                    // this->interpretMsg(msg);
+                    can.write(msg);
                     this->awaitResponse();
                 }
                 break;
@@ -236,8 +251,8 @@ uint8_t CAN_interpreter::startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1
                     return 1;
                 } else {
                     Serial.println("Sending controlword to execute transition 2...");
-                    this->interpretMsg(msg);
-                    can1.write(msg);
+                    // this->interpretMsg(msg);
+                    can.write(msg);
                     this->awaitResponse();
                 } 
                 break;
@@ -252,8 +267,8 @@ uint8_t CAN_interpreter::startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1
                     return 1;
                 } else {
                     Serial.println("Sending controlword to execute transition 3...");
-                    this->interpretMsg(msg);
-                    can1.write(msg);
+                    // this->interpretMsg(msg);
+                    can.write(msg);
                     this->awaitResponse();
                 }
                 break;
@@ -268,8 +283,8 @@ uint8_t CAN_interpreter::startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1
                     return 1;
                 } else {
                     Serial.println("Sending controlword to execute transition 4...");
-                    this->interpretMsg(msg);
-                    can1.write(msg);
+                    // this->interpretMsg(msg);
+                    can.write(msg);
                     this->awaitResponse();
                 }
                 break;
@@ -284,8 +299,8 @@ uint8_t CAN_interpreter::startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1
                     return 1;
                 } else {
                     Serial.println("Sending controlword to execute transition 16...");
-                    this->interpretMsg(msg);
-                    can1.write(msg);
+                    // this->interpretMsg(msg);
+                    can.write(msg);
                     this->awaitResponse();
                 }
                 break;
@@ -300,8 +315,8 @@ uint8_t CAN_interpreter::startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1
                     return 1;
                 } else {
                     Serial.println("Sending controlword to execute transition 14...");
-                    this->interpretMsg(msg);
-                    can1.write(msg);
+                    // this->interpretMsg(msg);
+                    can.write(msg);
                     this->awaitResponse();
                 }
                 break;
@@ -316,8 +331,8 @@ uint8_t CAN_interpreter::startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1
                     return 1;
                 } else {
                     Serial.println("Sending controlword to execute transition 15...");
-                    this->interpretMsg(msg);
-                    can1.write(msg);
+                    // this->interpretMsg(msg);
+                    can.write(msg);
                     this->awaitResponse();
                 }
                 break;
@@ -337,8 +352,8 @@ uint8_t CAN_interpreter::startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1
             return 1;
         } else {
             Serial.println("Sending...");
-            this->interpretMsg(msg);
-            can1.write(msg);
+            // this->interpretMsg(msg);
+            can.write(msg);
             this->awaitResponse();
         }
 
@@ -360,66 +375,86 @@ void CAN_interpreter::setResponse(CAN_message_t msg_ptr){
 void CAN_interpreter::awaitResponse(){
     while(!newMessage){
         delay(10);
+        // Serial.println("we love senior design!");        
+        can.events();
     }
+    Serial.println("Response received");
     newMessage = false;
 }
 
 // Get driver state from CAN message
 void CAN_interpreter::getState(CAN_message_t &message) {
     
-    uint32_t word = message.buf[0] | (message.buf[1] << 8) | (message.buf[2] << 16) | (message.buf[3] << 24);
+    // uint32_t word = message.buf[0] | (message.buf[1] << 8) | (message.buf[2] << 16) | (message.buf[3] << 24);
+    //message data to little endian
+    uint32_t word = (uint32_t) message.buf[4];
+    word += (uint32_t) message.buf[5] << 8u;
+    word += (uint32_t) message.buf[6] << 16u;
+    word += (uint32_t) message.buf[7] << 24u;
 
+    Serial.print("word before: ");
+    Serial.println(word, BIN);
     // we only care about bits 0,1,2,3,5,6
     // set all other bits to 0
     //        76543210
     word &= 0b01101111;
-
+    Serial.print("word after: ");
+    Serial.println(word, BIN);
     switch(word) {
 
         // Not ready to switch on
         case 0b00000000:
             state = NotReadyToSwitchOn;
+            Serial.println("NotReadyToSwitchOn");
             break;
 
         // Switch on disabled 
         case 0b01000000:
             state = SwitchOnDisabled;
+            Serial.println("SwitchOnDisabled");
             break;
 
         // Ready to switch on
         case 0b00100001:
             state = ReadyToSwitchOn;
+            Serial.println("ReadyToSwitchOn");
             break;
 
         // Switched on
         case 0b00100011:
             state = SwitchedOn;
-            break;;
+            Serial.println("SwitchedOn");
+            break;
 
         // Operation enabled
         case 0b00100111:
             state = OperationEnabled;
+            Serial.println("In OperationEnabled state");
             break;
 
         // Quick stop active
         case 0b00000111:
             state = QuickStopActive;
+            Serial.println("In QuickStopActive state");
             break;
 
         // Fault reaction active
         case 0b00001111:
             state = FaultReactionActive;
+            Serial.println("In FaultReactionActive state");
             break;
 
         // Fault
         case 0b00001000:
             state = Fault;
+            Serial.println("In Fault state");
             break;
 
-        //set an error if the state isn't recognized
+        //set an error if the state isn"t recognized
         default:
             state = notRecognized;
-            break;
+            Serial.println("In notRecognized state");
+            break;            
     };
 }
 

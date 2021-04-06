@@ -19,13 +19,14 @@
 class CAN_interpreter
 {
   public:
-    CAN_interpreter();
+    CAN_interpreter(void (*cb)());//FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1);
     enum state_t{NotReadyToSwitchOn, SwitchOnDisabled, ReadyToSwitchOn, SwitchedOn, OperationEnabled,
       QuickStopActive, FaultReactionActive, Fault, notRecognized};
     state_t state;
+    FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> can;
     uint8_t createMsg(char *input_ptr,CAN_message_t *msg_ptr);
     void interpretMsg(CAN_message_t msg_ptr);
-    uint8_t startup(FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1);
+    uint8_t startup();
     void setResponse(CAN_message_t msg_ptr);
     void getState(CAN_message_t &message);
     void awaitResponse();
@@ -36,8 +37,10 @@ class CAN_interpreter
     uint16_t trajectoryLength;
     int32_t position;
     int32_t target;    // encoder increments
+    char input[32];
 
   private:
+    void canSniff(const CAN_message_t &msg);
     CAN_message_t _res; // response that will be checked
     uint8_t err;
     double freq = 100; // Hz
