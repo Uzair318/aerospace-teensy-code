@@ -458,7 +458,7 @@ void CAN_interpreter::getState(CAN_message_t &message) {
     };
 }
 
-// Set trajectory parameters using centirad for V and A
+// Set trajectory parameters
 void CAN_interpreter::setTrajectoryParams(double f, double v, double a){
     freq = f;
     maxV = v * RAD_TO_TICKS;

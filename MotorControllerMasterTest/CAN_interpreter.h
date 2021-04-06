@@ -14,8 +14,6 @@
 #define MAX_TRAJECTORY 1500
 #define RAD_TO_TICKS 102943.7081
 
-
-
 class CAN_interpreter
 {
   public:
@@ -44,8 +42,8 @@ class CAN_interpreter
     CAN_message_t _res; // response that will be checked
     uint8_t err;
     double freq = 100; // Hz
-    double maxV = 20;  // centi rad/s
-    double maxA = 40;  // centi rad/s^2
+    double maxV = .2;  // rad/s
+    double maxA = .4;  // rad/s^2
 
     // for trajectory generation
     double T;
