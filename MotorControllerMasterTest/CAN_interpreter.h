@@ -22,12 +22,15 @@ class CAN_interpreter
       QuickStopActive, FaultReactionActive, Fault, notRecognized};
     state_t state;
     FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> can;
+    CAN_message_t msg;
     uint8_t createMsg(char *input_ptr,CAN_message_t *msg_ptr);
     void interpretMsg(CAN_message_t msg_ptr);
     uint8_t startup();
+    void setHomePosition();
     void setResponse(CAN_message_t msg_ptr);
     void getState(CAN_message_t &message);
     void awaitResponse();
+    void getPosition();
     void setTrajectoryParams(double f, double v, double a);
     uint8_t genTrajectory(double target_rad, bool absolute);
     bool newMessage;

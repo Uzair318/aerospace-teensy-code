@@ -9,7 +9,7 @@ void setup() {
     while(!Serial.available()){}  // pause until we want it to start
     uint8_t startupResponse = CAN_int.startup();
     Serial.println("CAN setup finished");
-    CAN_int.genTrajectory(0.2, true);
+    CAN_int.genTrajectory(2, true);
     Serial.print("Trajectory Length: ");
     Serial.println(CAN_int.trajectoryLength);
     myTimer.begin(sendPoint, 10000);  // sendPoint to run at 100 kHz (in microseconds)
@@ -48,8 +48,8 @@ void loop() {
 }
 
 void canSniff(const CAN_message_t &msg) {
-    Serial.println("Received...");
-    CAN_int.interpretMsg(msg);
+    // Serial.println("Received...");
+    // CAN_int.interpretMsg(msg);
     CAN_int.setResponse(msg);
     CAN_int.newMessage = true;
 }
@@ -75,9 +75,9 @@ void sendPoint() {
       Serial.println(err);
     }
     else {
-      Serial.print("Sending Position: ");
-      Serial.println(position);
-      CAN_int.interpretMsg(message);
+      // Serial.print("Sending Position: ");
+      // Serial.println(position);
+      // CAN_int.interpretMsg(message);
       CAN_int.can.write(message);
     }
     // Serial.println(position);
@@ -85,6 +85,8 @@ void sendPoint() {
   } // if
   else {
      Serial.println("ending timer...");
+     Serial.print("ending position: ");
+     CAN_int.getPosition();
      myTimer.end(); // end timer
   } 
 }

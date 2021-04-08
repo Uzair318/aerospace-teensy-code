@@ -216,6 +216,8 @@ uint8_t CAN_interpreter::startup(){
         // this->interpretMsg(_res);
     }
 
+    
+
     // check the response and update the state
     // this->interpretMsg(_res);
     this->getState(_res);
@@ -226,8 +228,7 @@ uint8_t CAN_interpreter::startup(){
         switch(state) {
             case NotReadyToSwitchOn:
                 Serial.println("Not Ready To Switch On");
-                // char input[32] = "6040,00,b1111w";  // send controlword THIS ONE MIGHT BE WRONG
-                strcpy(input, "6040,00,b1111w");
+                strcpy(input, "6040,00,b0001w"); 
                 err = this->createMsg(input, &msg);
                 if(err > 0) {
                     Serial.print("error in NotReadyToSwitchOn case of CAN_interpreter.startup():");
@@ -242,7 +243,6 @@ uint8_t CAN_interpreter::startup(){
                 break;
             case SwitchOnDisabled:
                 Serial.println("Switch On Disabled");
-                // char input[32] = "6040,00,b0110w";  // send controlword 
                 strcpy(input, "6040,00,b0110w");
                 err = this->createMsg(input, &msg);
                 if(err > 0) {
@@ -258,7 +258,6 @@ uint8_t CAN_interpreter::startup(){
                 break;
             case ReadyToSwitchOn:
                 Serial.println("Ready to Switch On");
-                // char input[32] = "6040,00,b0111w";  // send controlword 
                 strcpy(input, "6040,00,b0111w");
                 err = this->createMsg(input, &msg);
                 if(err > 0) {
@@ -274,7 +273,6 @@ uint8_t CAN_interpreter::startup(){
                 break;
             case SwitchedOn:
                 Serial.println("Switched On");
-                // char input[32] = "6040,00,b1111w";  // send controlword 
                 strcpy(input, "6040,00,b1111w");
                 err = this->createMsg(input, &msg);
                 if(err > 0) {
@@ -290,7 +288,6 @@ uint8_t CAN_interpreter::startup(){
                 break;
             case QuickStopActive:
                 Serial.println("Quick Stop Active");
-                // char input[32] = "6040,00,b1111w";  // send controlword 
                 strcpy(input, "6040,00,b1111w");
                 err = this->createMsg(input, &msg);
                 if(err > 0) {
@@ -306,7 +303,6 @@ uint8_t CAN_interpreter::startup(){
                 break;
             case FaultReactionActive:
                 Serial.println("Fault Reaction Active");
-                // char input[32] = "6040,00,b00000000w";  // send controlword 
                 strcpy(input, "6040,00,b00000000w");
                 err = this->createMsg(input, &msg);
                 if(err > 0) {
@@ -322,7 +318,6 @@ uint8_t CAN_interpreter::startup(){
                 break;
             case Fault:
                 Serial.println("Fault");
-                // char input[32] = "6040,b10000000w";  // send controlword 
                 strcpy(input, "6040,00,b10000000w");
                 err = this->createMsg(input, &msg);
                 if(err > 0) {
@@ -342,8 +337,7 @@ uint8_t CAN_interpreter::startup(){
         }
 
         // send statusword   
-        Serial.println("Checking Statusword...");
-        // char input[32] = "6041,00,x0000r";  // statusword
+        // Serial.println("Checking Statusword...");
         strcpy(input, "6041,00,x0000r");
         err = this->createMsg(input, &msg);
         if(err > 0) {
@@ -351,20 +345,33 @@ uint8_t CAN_interpreter::startup(){
             Serial.println(err);
             return 1;
         } else {
-            Serial.println("Sending...");
+            // Serial.println("Sending...");
             // this->interpretMsg(msg);
             can.write(msg);
             this->awaitResponse();
         }
 
         // check the response and update the state
-        this->interpretMsg(_res);
+        // this->interpretMsg(_res);
         this->getState(_res);
     }
 
     Serial.println("Setup Complete: Controller in Operation Enabled state");
     return 0;
 }
+
+// void CAN_interpreter::setHomePosition(){
+//     strcpy(input, "30B0,00,x0000w"); // set home command
+//     err = this->createMsg(input, &msg);
+//     if(err > 0) {
+//         Serial.print("error setting home position");
+//         Serial.println(err);
+//         return 1;
+//     } else {
+//         can.write(msg);
+//         this->awaitResponse();
+//     }
+// }
 
 // set the incoming CAN message
 void CAN_interpreter::setResponse(CAN_message_t msg_ptr){
@@ -378,7 +385,7 @@ void CAN_interpreter::awaitResponse(){
         // Serial.println("we love senior design!");        
         can.events();
     }
-    Serial.println("Response received");
+    // Serial.println("Response received");
     newMessage = false;
 }
 
@@ -392,14 +399,14 @@ void CAN_interpreter::getState(CAN_message_t &message) {
     word += (uint32_t) message.buf[6] << 16u;
     word += (uint32_t) message.buf[7] << 24u;
 
-    Serial.print("word before: ");
-    Serial.println(word, BIN);
+    // Serial.print("word before: ");
+    // Serial.println(word, BIN);
     // we only care about bits 0,1,2,3,5,6
     // set all other bits to 0
     //        76543210
     word &= 0b01101111;
-    Serial.print("word after: ");
-    Serial.println(word, BIN);
+    // Serial.print("word after: ");
+    // Serial.println(word, BIN);
     switch(word) {
 
         // Not ready to switch on
@@ -458,6 +465,30 @@ void CAN_interpreter::getState(CAN_message_t &message) {
     };
 }
 
+void CAN_interpreter::getPosition() {
+    // get the Position Actual Value from the controller
+    strcpy(input, "6064,00,x0000r");
+    err = this->createMsg(input, &msg);
+    if(err > 0) {
+        Serial.print("error in getPosition():");
+        Serial.println(err);
+        return 1;
+    } else {
+        can.write(msg);
+        this->awaitResponse();
+        // this->interpretMsg(_res);
+        
+        //message data to little endian
+        position = (int32_t) _res.buf[4];
+        position += (int32_t) _res.buf[5] << 8u;
+        position += (int32_t) _res.buf[6] << 16u;
+        position += (int32_t) _res.buf[7] << 24u;
+
+        Serial.print("Current Position: ");
+        Serial.println(position);
+    }
+}
+
 // Set trajectory parameters
 void CAN_interpreter::setTrajectoryParams(double f, double v, double a){
     freq = f;
@@ -470,11 +501,18 @@ void CAN_interpreter::setTrajectoryParams(double f, double v, double a){
 // absolute = false: treat input as change in position
 uint8_t CAN_interpreter::genTrajectory(double target_rad, bool absolute = true){
     // convert target from rads to encoder ticks
+    this->getPosition();
+
     target = (int32_t) (target_rad * RAD_TO_TICKS);
 
     // change target if not using absolute position
     if(!absolute){
         target += position;
+    }
+    
+    int8_t direction = 1; // 1 is forward, -1 is backwards
+    if(target < position){
+        direction = -1;
     }
     
     T = maxV / maxA;
@@ -500,15 +538,15 @@ uint8_t CAN_interpreter::genTrajectory(double target_rad, bool absolute = true){
 
             // first section - acceleration
             if(t >= 0 && t <T){
-                trajectory[i] = position + (int32_t) (maxA * (pow(t,2)/2 + T_pi2*cos(pi_T*t) - T_pi2));
+                trajectory[i] = position + (int32_t) (direction * (maxA * (pow(t,2)/2 + T_pi2*cos(pi_T*t) - T_pi2)));
             }
             // second section - constant velocity
             else if(t >= T && t <= T+Tc){
-                trajectory[i] = position + (int32_t) (maxA * (pow(T,2)/2 + T*(t-T)));
+                trajectory[i] = position + (int32_t) (direction * (maxA * (pow(T,2)/2 + T*(t-T))));
             }
             // third section - deceleration
             else{
-                trajectory[i] = position + (int32_t) (maxA * (pow(T,2)/2) + maxA * (T*Tc) + maxV*(t-T-Tc) - maxA * (pow(t-T-Tc,2)/2 + T_pi2*cos(pi_T*(t-T-Tc)) - T_pi2));
+                trajectory[i] = position + (int32_t) ((direction * maxA * (pow(T,2)/2) + maxA * (T*Tc) + maxV*(t-T-Tc) - maxA * (pow(t-T-Tc,2)/2 + T_pi2*cos(pi_T*(t-T-Tc)) - T_pi2)));
                 //                          s23 = am*(T^2)/2 + am*T*Tc + Vm*(t23-T-Tc) - am * (((t23-T-Tc).^2)/2 + T_pi2*cos(pi_T*(t23-T-Tc)) - T_pi2);
             }
             // Serial.println(trajectory[i]);
@@ -536,11 +574,11 @@ uint8_t CAN_interpreter::genTrajectory(double target_rad, bool absolute = true){
 
             // first section - acceleration (same as above)
             if(t >= 0 && t <T){
-                trajectory[i] = position + (int32_t) (maxA * (pow(t,2)/2 + T_pi2*cos(pi_T*t) - T_pi2));
+                trajectory[i] = position + (int32_t) (direction * (maxA * (pow(t,2)/2 + T_pi2*cos(pi_T*t) - T_pi2)));
             }
             // second section - deceleration
             else{
-                trajectory[i] = position + (int32_t) (maxA * (pow(T,2)/2 + T*(t-T) - pow(t-T,2)/2 + T_pi2*cos(pi_T*(t-T)) - T_pi2));
+                trajectory[i] = position + (int32_t) (direction * (maxA * (pow(T,2)/2 + T*(t-T) - pow(t-T,2)/2 + T_pi2*cos(pi_T*(t-T)) - T_pi2)));
             }
         }
     }
