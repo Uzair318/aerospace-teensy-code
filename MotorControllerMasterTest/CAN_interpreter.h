@@ -33,22 +33,25 @@ class CAN_interpreter
     bool newMessage;
     int32_t trajectory[MAX_TRAJECTORY];
     uint16_t trajectoryLength;
-    int32_t position;
+    int32_t position = 0;
     int32_t target;    // encoder increments
     char input[32];
+
+    double T;
+    double t = 0;
+    double Tc;
+    double maxV = .2 * RAD_TO_TICKS;  // rad/s
+    double maxA = .4 * RAD_TO_TICKS;  // rad/s^2
 
   private:
     void canSniff(const CAN_message_t &msg);
     CAN_message_t _res; // response that will be checked
     uint8_t err;
     double freq = 100; // Hz
-    double maxV = .2;  // rad/s
-    double maxA = .4;  // rad/s^2
+    
 
     // for trajectory generation
-    double T;
-    double t = 0;
-    double Tc;
+
     double T_pi2;
     double pi_T;
 };

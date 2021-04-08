@@ -478,7 +478,7 @@ uint8_t CAN_interpreter::genTrajectory(double target_rad, bool absolute = true){
     }
     
     T = maxV / maxA;
-    Tc = (abs(target - position) - maxV*T) / (maxA*t);
+    Tc = (abs(target - position) - maxV*T) / (maxA*T);
 
     // CASE 1: constant velocity section
     if(Tc > 0){
@@ -487,7 +487,8 @@ uint8_t CAN_interpreter::genTrajectory(double target_rad, bool absolute = true){
         pi_T = 2*M_PI/T;
 
         // calculate array length and make sure it is not too long
-        trajectoryLength = (uint16_t) ((2*T+Tc) / freq);
+        trajectoryLength = (uint16_t) ((2*T+Tc) * freq);
+
         if(trajectoryLength >= MAX_TRAJECTORY){
             Serial.println("Trajectory too long. (Const. V)");
             return 1;
@@ -507,8 +508,10 @@ uint8_t CAN_interpreter::genTrajectory(double target_rad, bool absolute = true){
             }
             // third section - deceleration
             else{
-                trajectory[i] = position + (int32_t) (maxA * (pow(T,2)/2 + T*Tc + maxV*(t-T-Tc) - pow(t-T-Tc,2)/2 + T_pi2*cos(pi_T*(t-T-Tc)) - T_pi2));
+                trajectory[i] = position + (int32_t) (maxA * (pow(T,2)/2) + maxA * (T*Tc) + maxV*(t-T-Tc) - maxA * (pow(t-T-Tc,2)/2 + T_pi2*cos(pi_T*(t-T-Tc)) - T_pi2));
+                //                          s23 = am*(T^2)/2 + am*T*Tc + Vm*(t23-T-Tc) - am * (((t23-T-Tc).^2)/2 + T_pi2*cos(pi_T*(t23-T-Tc)) - T_pi2);
             }
+            // Serial.println(trajectory[i]);
         }
     }
     // CASE 2: no constant velocity section
