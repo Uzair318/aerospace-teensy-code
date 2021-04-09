@@ -26,6 +26,7 @@ class CAN_interpreter
     uint8_t createMsg(char *input_ptr,CAN_message_t *msg_ptr);
     void interpretMsg(CAN_message_t msg_ptr);
     uint8_t startup();
+    int32_t home = 0;
     void setHomePosition();
     void setResponse(CAN_message_t msg_ptr);
     void getState(CAN_message_t &message);

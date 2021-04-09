@@ -5,3 +5,4 @@ blink_both/
 .DS_Store
 *.json
 .vscode/
+.vs/

@@ -84,10 +84,11 @@ void sendPoint() {
     count++; // increase counter
   } // if
   else {
-     Serial.println("ending timer...");
-     Serial.print("ending position: ");
-     CAN_int.getPosition();
-     myTimer.end(); // end timer
+    Serial.println("ending timer...");
+
+    myTimer.end(); // end timer
+    CAN_int.newMessage = false; // get new message instead of whats still in CAN buffer
+    CAN_int.getPosition();
   } 
 }
 

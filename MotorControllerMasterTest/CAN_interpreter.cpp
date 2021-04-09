@@ -227,6 +227,7 @@ uint8_t CAN_interpreter::startup(){
         // transition from the current state to the next state (and verify?)
         switch(state) {
             case NotReadyToSwitchOn:
+                // while loop that waits for state to change on its own
                 Serial.println("Not Ready To Switch On");
                 strcpy(input, "6040,00,b0001w"); 
                 err = this->createMsg(input, &msg);
@@ -355,28 +356,55 @@ uint8_t CAN_interpreter::startup(){
         // this->interpretMsg(_res);
         this->getState(_res);
     }
-
+    
+    this->setHomePosition();
     Serial.println("Setup Complete: Controller in Operation Enabled state");
     return 0;
 }
 
-// void CAN_interpreter::setHomePosition(){
-//     strcpy(input, "30B0,00,x0000w"); // set home command
-//     err = this->createMsg(input, &msg);
-//     if(err > 0) {
-//         Serial.print("error setting home position");
-//         Serial.println(err);
-//         return 1;
-//     } else {
-//         can.write(msg);
-//         this->awaitResponse();
-//     }
-// }
+void CAN_interpreter::setHomePosition(){
+    // get current position
+    strcpy(input, "6064,00,x0000r");
+    err = this->createMsg(input, &msg);
+    if(err > 0) {
+        Serial.print("error in getPosition():");
+        Serial.println(err);
+        return 1;
+    } else {
+        can.write(msg);
+        this->awaitResponse();
+        // this->interpretMsg(_res);
+        
+        //message data to little endian
+        home = (int32_t) _res.buf[4];
+        home += (int32_t) _res.buf[5] << 8u;
+        home += (int32_t) _res.buf[6] << 16u;
+        home += (int32_t) _res.buf[7] << 24u;
+
+        Serial.print("New home position: ");
+        Serial.println(home);
+    }
+    // strcpy(input, "30B0,00,x0000w"); // set home command
+    // err = this->createMsg(input, &msg);
+    // if(err > 0) {
+    //     Serial.print("error setting home position");
+    //     Serial.println(err);
+    //     return 1;
+    // } else {
+    //     can.write(msg);
+    //     this->awaitResponse();
+    // }
+}
 
 // set the incoming CAN message
 void CAN_interpreter::setResponse(CAN_message_t msg_ptr){
     _res = msg_ptr;
 }
+
+// void CAN_interpreter::clearResponse() {
+
+//     this->newMessage = false;
+// }
 
 // Delay until a new message is received
 void CAN_interpreter::awaitResponse(){
@@ -476,7 +504,7 @@ void CAN_interpreter::getPosition() {
     } else {
         can.write(msg);
         this->awaitResponse();
-        // this->interpretMsg(_res);
+        this->interpretMsg(_res);
         
         //message data to little endian
         position = (int32_t) _res.buf[4];
