@@ -384,16 +384,6 @@ void CAN_interpreter::setHomePosition(){
         Serial.print("New home position: ");
         Serial.println(home);
     }
-    // strcpy(input, "30B0,00,x0000w"); // set home command
-    // err = this->createMsg(input, &msg);
-    // if(err > 0) {
-    //     Serial.print("error setting home position");
-    //     Serial.println(err);
-    //     return 1;
-    // } else {
-    //     can.write(msg);
-    //     this->awaitResponse();
-    // }
 }
 
 // set the incoming CAN message
@@ -511,6 +501,7 @@ void CAN_interpreter::getPosition() {
         position += (int32_t) _res.buf[5] << 8u;
         position += (int32_t) _res.buf[6] << 16u;
         position += (int32_t) _res.buf[7] << 24u;
+        position -= home;
 
         Serial.print("Current Position: ");
         Serial.println(position);
@@ -566,15 +557,15 @@ uint8_t CAN_interpreter::genTrajectory(double target_rad, bool absolute = true){
 
             // first section - acceleration
             if(t >= 0 && t <T){
-                trajectory[i] = position + (int32_t) (direction * (maxA * (pow(t,2)/2 + T_pi2*cos(pi_T*t) - T_pi2)));
+                trajectory[i] = position + home + (int32_t) (direction * (maxA * (pow(t,2)/2 + T_pi2*cos(pi_T*t) - T_pi2)));
             }
             // second section - constant velocity
             else if(t >= T && t <= T+Tc){
-                trajectory[i] = position + (int32_t) (direction * (maxA * (pow(T,2)/2 + T*(t-T))));
+                trajectory[i] = position + home + (int32_t) (direction * (maxA * (pow(T,2)/2 + T*(t-T))));
             }
             // third section - deceleration
             else{
-                trajectory[i] = position + (int32_t) ((direction * maxA * (pow(T,2)/2) + maxA * (T*Tc) + maxV*(t-T-Tc) - maxA * (pow(t-T-Tc,2)/2 + T_pi2*cos(pi_T*(t-T-Tc)) - T_pi2)));
+                trajectory[i] = position + home + (int32_t) ((direction * maxA * (pow(T,2)/2) + maxA * (T*Tc) + maxV*(t-T-Tc) - maxA * (pow(t-T-Tc,2)/2 + T_pi2*cos(pi_T*(t-T-Tc)) - T_pi2)));
                 //                          s23 = am*(T^2)/2 + am*T*Tc + Vm*(t23-T-Tc) - am * (((t23-T-Tc).^2)/2 + T_pi2*cos(pi_T*(t23-T-Tc)) - T_pi2);
             }
             // Serial.println(trajectory[i]);
@@ -602,11 +593,11 @@ uint8_t CAN_interpreter::genTrajectory(double target_rad, bool absolute = true){
 
             // first section - acceleration (same as above)
             if(t >= 0 && t <T){
-                trajectory[i] = position + (int32_t) (direction * (maxA * (pow(t,2)/2 + T_pi2*cos(pi_T*t) - T_pi2)));
+                trajectory[i] = position + home + (int32_t) (direction * (maxA * (pow(t,2)/2 + T_pi2*cos(pi_T*t) - T_pi2)));
             }
             // second section - deceleration
             else{
-                trajectory[i] = position + (int32_t) (direction * (maxA * (pow(T,2)/2 + T*(t-T) - pow(t-T,2)/2 + T_pi2*cos(pi_T*(t-T)) - T_pi2)));
+                trajectory[i] = position + home + (int32_t) (direction * (maxA * (pow(T,2)/2 + T*(t-T) - pow(t-T,2)/2 + T_pi2*cos(pi_T*(t-T)) - T_pi2)));
             }
         }
     }
