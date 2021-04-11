@@ -3,6 +3,10 @@ IntervalTimer myTimer;
 CAN_interpreter CAN_int(&canSniff);
 char command[32];
 uint16_t count = 0;
+unsigned long before;
+unsigned long after;
+unsigned long diff = 0;
+uint16_t cycles = 0;
 
 void setup() {
     Serial.begin(115200);
@@ -18,38 +22,9 @@ void setup() {
 
 void loop() {
   CAN_int.can.events();
-
-  // if(Serial.available()){
-  //   CAN_int.genTrajectory(0.2, true);
-  //   Serial.println(CAN_int.trajectoryLength);
-  //   Serial.println(CAN_int.T);
-  //   Serial.println(CAN_int.Tc);
-  //   // myTimer.begin(sendPoint, 10000);  // sendPoint to run at 100 kHz (in microseconds)
-  //   // resetTimer();
-  //   Serial.flush();
-  //   delay(2000);
-
-  // }
-//  if (Serial.available()) {
-//    String input = Serial.readString();
-//    input.toCharArray(command, 32);
-//    CAN_message_t msg;
-//    int err = CAN_int.createMsg(command, &msg);   
-//    
-//    if(err > 0) {
-//      Serial.print("error:");
-//      Serial.println(err);
-//    } else {
-//      Serial.println("Sending...");
-//      CAN_int.interpretMsg(msg);
-//      can1.write(msg);
-//    }
-//  }
 }
 
 void canSniff(const CAN_message_t &msg) {
-    // Serial.println("Received...");
-    // CAN_int.interpretMsg(msg);
     CAN_int.setResponse(msg);
     CAN_int.newMessage = true;
 }
@@ -58,6 +33,7 @@ void canSniff(const CAN_message_t &msg) {
 // track of how many times it has blinked.
 
 void sendPoint() {
+  before = millis();
   if(count < CAN_int.trajectoryLength) {
     //get data from trajectory array
     int32_t position = CAN_int.trajectory[count];
@@ -75,13 +51,14 @@ void sendPoint() {
       Serial.println(err);
     }
     else {
-      // Serial.print("Sending Position: ");
-      // Serial.println(position);
-      // CAN_int.interpretMsg(message);
       CAN_int.can.write(message);
     }
     // Serial.println(position);
     count++; // increase counter
+    after = millis();
+    Serial.println(after - before);
+    diff += after - before;
+    cycles ++
   } // if
   else {
     Serial.println("ending timer...");
@@ -89,7 +66,9 @@ void sendPoint() {
     myTimer.end(); // end timer
     CAN_int.newMessage = false; // get new message instead of whats still in CAN buffer
     CAN_int.getPosition();
-  } 
+    Serial.print("Average interrupt time (ms): ");
+    Serial.println((float) diff / (float) count);
+  }
 }
 
 /*
