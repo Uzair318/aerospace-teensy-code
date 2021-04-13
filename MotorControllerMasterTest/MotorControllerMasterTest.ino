@@ -19,17 +19,6 @@ void setup() {
 void loop() {
   CAN_int.can.events();
 
-  // if(Serial.available()){
-  //   CAN_int.genTrajectory(0.2, true);
-  //   Serial.println(CAN_int.trajectoryLength);
-  //   Serial.println(CAN_int.T);
-  //   Serial.println(CAN_int.Tc);
-  //   // myTimer.begin(sendPoint, 10000);  // sendPoint to run at 100 kHz (in microseconds)
-  //   // resetTimer();
-  //   Serial.flush();
-  //   delay(2000);
-
-  // }
 //  if (Serial.available()) {
 //    String input = Serial.readString();
 //    input.toCharArray(command, 32);

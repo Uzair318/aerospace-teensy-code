@@ -494,7 +494,7 @@ void CAN_interpreter::getPosition() {
     } else {
         can.write(msg);
         this->awaitResponse();
-        this->interpretMsg(_res);
+        // this->interpretMsg(_res);
         
         //message data to little endian
         position = (int32_t) _res.buf[4];
