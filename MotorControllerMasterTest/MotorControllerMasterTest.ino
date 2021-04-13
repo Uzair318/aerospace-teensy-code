@@ -33,7 +33,7 @@ void canSniff(const CAN_message_t &msg) {
 // track of how many times it has blinked.
 
 void sendPoint() {
-  before = millis();
+  before = micros();
   if(count < CAN_int.trajectoryLength) {
     //get data from trajectory array
     int32_t position = CAN_int.trajectory[count];
@@ -55,10 +55,10 @@ void sendPoint() {
     }
     // Serial.println(position);
     count++; // increase counter
-    after = millis();
+    after = micros();
     Serial.println(after - before);
     diff += after - before;
-    cycles ++
+    cycles ++;
   } // if
   else {
     Serial.println("ending timer...");
