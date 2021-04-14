@@ -12,7 +12,7 @@
 #include <math.h>
 
 #define MAX_TRAJECTORY 1500
-#define RAD_TO_TICKS 102943.7081
+#define RAD_TO_TICKS 10430.2191955  
 
 template<typename can_T>
 class CAN_interpreter
@@ -577,7 +577,7 @@ void CAN_interpreter<can_T>::getPosition() {
     } else {
         can.write(msg);
         this->awaitResponse();
-        this->interpretMsg(_res);
+        // this->interpretMsg(_res);
         
         //message data to little endian
         position = (int32_t) _res.buf[4];
