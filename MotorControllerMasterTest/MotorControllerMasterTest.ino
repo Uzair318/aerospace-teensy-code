@@ -1,7 +1,12 @@
 #include "CAN_interpreter.h"
 
 IntervalTimer myTimer;
-CAN_interpreter CAN_int_az(&canSniff_az), CAN_int_el(&canSniff_el);
+
+FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> can1;
+FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> can2;
+CAN_interpreter<FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16>> CAN_int_az(&canSniff_az, can1);
+CAN_interpreter<FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16>> CAN_int_el(&canSniff_el, can2);
+
 char command[32], input_az[32], input_el[32]; // command[] is used in loop()
 uint16_t count = 0;
 
