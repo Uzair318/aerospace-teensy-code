@@ -44,7 +44,7 @@ class CAN_interpreter
     uint8_t genTrajectory(double target_rad, bool absolute);
     bool newMessage;
     int32_t trajectory[MAX_TRAJECTORY];
-    uint16_t trajectoryLength;
+    uint16_t trajectoryLength = 100;
     int32_t position = 0;
     int32_t target;    // encoder increments
     char input[32];
