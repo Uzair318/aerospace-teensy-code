@@ -18,8 +18,10 @@ template<typename can_T>
 class CAN_interpreter
 {
   public:
-    CAN_interpreter(void (*cb)(), can_T can_t);//FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1);
-    can_T can;
+    CAN_interpreter(uint32_t id);//FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> &can1);
+    void setCAN(can_T can_t);
+    static can_T can;
+    uint32_t CAN_id;
 
     enum state_t{NotReadyToSwitchOn, SwitchOnDisabled, ReadyToSwitchOn, SwitchedOn, OperationEnabled,
       QuickStopActive, FaultReactionActive, Fault, notRecognized};
@@ -75,12 +77,10 @@ class CAN_interpreter
     CAN interpreter library to take user input and create Flexcan4 messages for Maxon EPOS4 controller
     Alex Broz, Uzair Ahmed
     Input format is INDEX,  SUBINDEX,DATA,w/r
-
     INDEX and SUBINDEX in hexadecimal, chars 1-4
     DATA format specified by b, x, or d for binary, hex, and decimal, chars 5 and 6
         indicator letter on char 7
     w/r for read or write  - case doesn't matter
-
     ex: 6061,00,x12345678w
         ACD1,42,b0000011011011011
         1111,FF,d64321
@@ -88,14 +88,13 @@ class CAN_interpreter
 
 // #include "CAN_interpreter.h"
 template<typename can_T>
-CAN_interpreter<can_T>::CAN_interpreter(void (*cb)(), can_T can_t){
-    can = can_t;
+CAN_interpreter<can_T>::CAN_interpreter(uint32_t id){
+    CAN_id = id;
+}
 
-    can.begin();
-    can.setBaudRate(250000);
-    can.enableFIFO();
-    can.enableFIFOInterrupt();
-    can.onReceive(FIFO, *cb);
+template<typename can_T>
+void CAN_interpreter<can_T>::setCAN(can_T can_t){
+    can = can_t;
 }
 
 // void CAN_interpreter<can_T>::canSniff(const CAN_message_t &msg) {
