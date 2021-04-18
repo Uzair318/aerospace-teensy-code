@@ -5,7 +5,7 @@ IntervalTimer myTimer;
 FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> can1;
 FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> can2;
 CAN_interpreter<FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16>> CAN_int_az(&canSniff_az, can1);
-CAN_interpreter<FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16>> CAN_int_el(&canSniff_az, can2);
+CAN_interpreter<FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16>> CAN_int_el(&canSniff_el, can2);
 
 char command[32], input_az[32], input_el[32]; // command[] is used in loop()
 uint16_t count = 0;
@@ -15,7 +15,6 @@ int32_t position_az, position_el;
 String CANcommand_az, CANcommand_el;
 CAN_message_t message_az, message_el;
 uint16_t err_az, err_el;
-
 
 void setup() {
     Serial.begin(115200);
@@ -32,13 +31,13 @@ void setup() {
     startupResponse = CAN_int_el.startup();
     Serial.println("Elevation CAN setup finished");
     
-    // CAN_int_az.genTrajectory(2, true);
-    // CAN_int_el.genTrajectory(2, true);
+    CAN_int_az.genTrajectory(2, true);
+    CAN_int_el.genTrajectory(2, true);
 
-    // Serial.println("Trajectory Lengths: ");
-    // Serial.println(CAN_int_az.trajectoryLength);
-    // Serial.println(CAN_int_el.trajectoryLength);
-    // myTimer.begin(sendPoint, 10000);  // sendPoint to run at 100 kHz (in microseconds)
+    Serial.println("Trajectory Lengths: ");
+    Serial.println(CAN_int_az.trajectoryLength);
+    Serial.println(CAN_int_el.trajectoryLength);
+    myTimer.begin(sendPoint, 10000);  // sendPoint to run at 100 kHz (in microseconds)
     // resetTimer();
 }
 
