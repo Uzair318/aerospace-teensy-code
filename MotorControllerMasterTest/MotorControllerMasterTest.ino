@@ -119,12 +119,15 @@ void sendPoint() {
         // Serial.print("Sending Position: ");
         // Serial.println(position_az);
         // CAN_int_az.interpretMsg(message_az);
+        // Serial.println("Sending azimuth...");
         CAN_int_az.can.write(message_az);
       }
       if(count < CAN_int_el.trajectoryLength){
         // Serial.print("Sending Position: ");
         // Serial.println(position);
         // CAN_int_az.interpretMsg(message);
+        // Serial.println("Sending elevation...");
+        // CAN_int_el.interpretMsg(message_el);
         CAN_int_el.can.write(message_el);
       }
     }

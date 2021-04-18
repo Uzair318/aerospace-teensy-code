@@ -105,7 +105,6 @@ CAN_interpreter<can_T>::CAN_interpreter(void (*cb)(), can_T can_t){
 //     this->newMessage = true;
 // }
 
-
 // Create a FLEXCAN_T4 message from char array input
 template<typename can_T>
 uint8_t CAN_interpreter<can_T>::createMsg(char _input[],CAN_message_t *msg_ptr){
@@ -114,6 +113,9 @@ uint8_t CAN_interpreter<can_T>::createMsg(char _input[],CAN_message_t *msg_ptr){
     char _temp[33];
     uint8_t _length = 0;
     uint32_t _data;
+
+    Serial.println();
+    Serial.println(_input);
 
     _msg.id = 0x0601;  // 0x600 + node_id (SDO client to server)
     
@@ -125,20 +127,35 @@ uint8_t CAN_interpreter<can_T>::createMsg(char _input[],CAN_message_t *msg_ptr){
     //index low byte - chars 3 and 4
     _temp[0] = _input[2];
     _temp[1] = _input[3];
-    _temp[3] = '\0';
+    _temp[2] = '\0';
     _msg.buf[1] = (uint8_t) strtol(_temp, nullptr, 16);
+
+    Serial.println(_temp);
+    // Serial.println(_msg.buf[1],HEX);
+    // Serial.println(_msg.buf[2],HEX);
+    // Serial.println(_msg.buf[3],HEX);
     
     //index high byte - chars 1 and 2
     _temp[0] = _input[0];
     _temp[1] = _input[1];
-    _temp[3] = '\0';
+    _temp[2] = '\0';
     _msg.buf[2] = (uint8_t) strtol(_temp, nullptr, 16);
+
+    Serial.println(_temp);
+    // Serial.println(_msg.buf[1],HEX);
+    // Serial.println(_msg.buf[2,HEX);
+    // Serial.println(_msg.buf[3],HEX);
 
     //subindex - chars 5 and 6
     _temp[0] = _input[5];
     _temp[1] = _input[6];
-    _temp[3] = '\0';
+    _temp[2] = '\0';
     _msg.buf[3] = (uint8_t) strtol(_temp, nullptr, 16);
+
+    Serial.println(_temp);
+    Serial.print(_msg.buf[1],HEX);
+    Serial.print(_msg.buf[2],HEX);
+    Serial.println(_msg.buf[3],HEX);
 
     //determine data length and read/write
     _length = 0;
