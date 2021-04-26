@@ -12,7 +12,7 @@
 #include <math.h>
 
 #define MAX_TRAJECTORY 1500
-#define RAD_TO_TICKS 10430.2191955  
+#define RAD_TO_TICKS 41721.5// 10430.2191955  
 
 template<typename can_T>
 class CAN_interpreter
@@ -52,8 +52,8 @@ class CAN_interpreter
     double T;
     double t = 0;
     double Tc;
-    double maxV = .2 * RAD_TO_TICKS;  // rad/s
-    double maxA = .4 * RAD_TO_TICKS;  // rad/s^2
+    double maxV = .3 * RAD_TO_TICKS;  // rad/s
+    double maxA = .2 * RAD_TO_TICKS;  // rad/s^2
 
   private:
     void canSniff(const CAN_message_t &msg);
@@ -114,9 +114,6 @@ uint8_t CAN_interpreter<can_T>::createMsg(char _input[],CAN_message_t *msg_ptr){
     uint8_t _length = 0;
     uint32_t _data;
 
-    Serial.println();
-    Serial.println(_input);
-
     _msg.id = 0x0601;  // 0x600 + node_id (SDO client to server)
     
     //check for valid comma placement
@@ -130,7 +127,6 @@ uint8_t CAN_interpreter<can_T>::createMsg(char _input[],CAN_message_t *msg_ptr){
     _temp[2] = '\0';
     _msg.buf[1] = (uint8_t) strtol(_temp, nullptr, 16);
 
-    Serial.println(_temp);
     // Serial.println(_msg.buf[1],HEX);
     // Serial.println(_msg.buf[2],HEX);
     // Serial.println(_msg.buf[3],HEX);
@@ -141,7 +137,6 @@ uint8_t CAN_interpreter<can_T>::createMsg(char _input[],CAN_message_t *msg_ptr){
     _temp[2] = '\0';
     _msg.buf[2] = (uint8_t) strtol(_temp, nullptr, 16);
 
-    Serial.println(_temp);
     // Serial.println(_msg.buf[1],HEX);
     // Serial.println(_msg.buf[2,HEX);
     // Serial.println(_msg.buf[3],HEX);
@@ -151,11 +146,6 @@ uint8_t CAN_interpreter<can_T>::createMsg(char _input[],CAN_message_t *msg_ptr){
     _temp[1] = _input[6];
     _temp[2] = '\0';
     _msg.buf[3] = (uint8_t) strtol(_temp, nullptr, 16);
-
-    Serial.println(_temp);
-    Serial.print(_msg.buf[1],HEX);
-    Serial.print(_msg.buf[2],HEX);
-    Serial.println(_msg.buf[3],HEX);
 
     //determine data length and read/write
     _length = 0;

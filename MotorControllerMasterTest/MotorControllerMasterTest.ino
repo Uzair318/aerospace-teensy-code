@@ -19,6 +19,7 @@ uint16_t err_az, err_el;
 void setup() {
     Serial.begin(115200);
     while(!Serial.available()){}  // pause until we want it to start
+    Serial.println("Starting");
 
     uint8_t startupResponse = CAN_int_az.startup();
     Serial.println("Azimuth CAN setup finished");
@@ -30,15 +31,24 @@ void setup() {
 
     startupResponse = CAN_int_el.startup();
     Serial.println("Elevation CAN setup finished");
-    
-    CAN_int_az.genTrajectory(2, true);
-    CAN_int_el.genTrajectory(2, true);
 
-    Serial.println("Trajectory Lengths: ");
-    Serial.println(CAN_int_az.trajectoryLength);
-    Serial.println(CAN_int_el.trajectoryLength);
-    myTimer.begin(sendPoint, 10000);  // sendPoint to run at 100 kHz (in microseconds)
-    // resetTimer();
+    sendSinglePoint(-1,1);
+
+    delay(5000);
+
+    CAN_int_az.newMessage = false;
+    CAN_int_az.getPosition();
+    CAN_int_el.newMessage = false;
+    CAN_int_el.getPosition();
+    
+    // CAN_int_az.genTrajectory(1, true);
+    // CAN_int_el.genTrajectory(1, true);
+
+    // Serial.println("Trajectory Lengths: ");
+    // Serial.println(CAN_int_az.trajectoryLength);
+    // Serial.println(CAN_int_el.trajectoryLength);
+    // myTimer.begin(sendPoint, 10000);  // sendPoint to run at 100 kHz (in microseconds)
+    // // resetTimer();
 }
 
 void loop() {
@@ -146,6 +156,73 @@ void sendPoint() {
     CAN_int_el.newMessage = false;
     CAN_int_el.getPosition();
   } 
+}
+
+/**
+ * params: az and el angles in rad
+ * needs to:
+ *  - convert them to ticks
+ *  - create commands
+ *  - send single point to each controller
+ */ 
+void sendSinglePoint(double angle_az, double angle_el) {
+  // convert angles to number of encoder ticks
+  position_az = (int32_t) (angle_az * RAD_TO_TICKS);
+  position_el = (int32_t) (angle_el * RAD_TO_TICKS);
+
+  //create entire command (index, subindex, data in decimal format, write)
+  CANcommand_az = "607A,00,d" + String(position_az) + "w";
+  CANcommand_el = "607A,00,d" + String(position_el) + "w";
+
+
+  // convert string to character array
+  CANcommand_az.toCharArray(input_az, CANcommand_az.length() + 1);
+  CANcommand_el.toCharArray(input_el, CANcommand_el.length() + 1);
+
+  // send CAN message
+  // CAN_message_t message;
+  err_az = CAN_int_az.createMsg(input_az, &message_az);
+  err_el = CAN_int_el.createMsg(input_el, &message_el);
+  if(err_az > 0 || err_el > 0) {
+    Serial.print("error az traj:");
+    Serial.println(err_az);
+    Serial.print("error el traj:");
+    Serial.println(err_el);
+  }
+  else{
+    CAN_int_az.can.write(message_az);
+    CAN_int_el.can.write(message_el);
+  }
+
+  // send CAN message
+  // CAN_message_t message;           // FEDCBA9786543210    
+  err_az = CAN_int_az.createMsg("6040,00,b000000001111111w", &message_az);
+  err_el = CAN_int_el.createMsg("6040,00,b000000001111111w", &message_el);
+  if(err_az > 0 || err_el > 0) {
+    Serial.print("error az:");
+    Serial.println(err_az);
+    Serial.print("error el:");
+    Serial.println(err_el);
+  }
+  else{
+    CAN_int_az.can.write(message_az);
+    CAN_int_el.can.write(message_el);
+  }
+
+  // send CAN message
+  // CAN_message_t message;           // FEDCBA9786543210    
+  err_az = CAN_int_az.createMsg("6040,00,b000000001101111w", &message_az);
+  err_el = CAN_int_el.createMsg("6040,00,b000000001101111w", &message_el);
+  if(err_az > 0 || err_el > 0) {
+    Serial.print("error az:");
+    Serial.println(err_az);
+    Serial.print("error el:");
+    Serial.println(err_el);
+  }
+  else{
+    CAN_int_az.can.write(message_az);
+    CAN_int_el.can.write(message_el);
+  }
 }
 
 /*
