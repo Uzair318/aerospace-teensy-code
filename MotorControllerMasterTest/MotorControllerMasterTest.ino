@@ -8,13 +8,14 @@ CAN_interpreter<FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16>> CAN_int_az(&canSniff_
 CAN_interpreter<FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16>> CAN_int_el(&canSniff_el, can2);
 
 char command[32], input_az[32], input_el[32]; // command[] is used in loop()
-uint16_t count = 0;
+uint16_t count = 0, finished_count = 0;
 
 // for sendPoint
 int32_t position_az, position_el;
 String CANcommand_az, CANcommand_el;
 CAN_message_t message_az, message_el;
 uint16_t err_az, err_el;
+bool el_reached = true, az_reached = false;
 
 void setup() {
     Serial.begin(115200);
@@ -31,24 +32,40 @@ void setup() {
 
     startupResponse = CAN_int_el.startup();
     Serial.println("Elevation CAN setup finished");
+    Serial.println();
+    Serial.println();
+    Serial.println();
+    Serial.println();
 
-    sendSinglePoint(-1,1);
+    // sendSinglePoint(-1,-1);
+    Serial.println("Point 1");
+    sendSinglePoint(.3,0);
+    count = 0;
+    myTimer.begin(poll, 10000);  // poll to run at 100 Hz (in microseconds)
+    delay(10000);
 
-    delay(5000);
+    Serial.println("Point 2");
+    sendSinglePoint(0,.3);
+    count = 0;
+    myTimer.begin(poll, 10000);  // poll to run at 100 Hz (in microseconds)
+    delay(4000);
 
-    CAN_int_az.newMessage = false;
-    CAN_int_az.getPosition();
-    CAN_int_el.newMessage = false;
-    CAN_int_el.getPosition();
-    
-    // CAN_int_az.genTrajectory(1, true);
-    // CAN_int_el.genTrajectory(1, true);
+    Serial.println("Point 3");
+    sendSinglePoint(-.3,0);
+    count = 0;
+    myTimer.begin(poll, 10000);  // poll to run at 100 Hz (in microseconds)
+    delay(4000);
 
-    // Serial.println("Trajectory Lengths: ");
-    // Serial.println(CAN_int_az.trajectoryLength);
-    // Serial.println(CAN_int_el.trajectoryLength);
-    // myTimer.begin(sendPoint, 10000);  // sendPoint to run at 100 kHz (in microseconds)
-    // // resetTimer();
+    Serial.println("Point 4");
+    sendSinglePoint(0,-.3);
+    count = 0;
+    myTimer.begin(poll, 10000);  // poll to run at 100 Hz (in microseconds)
+    // delay(5000);
+
+    // CAN_int_az.newMessage = false;
+    // CAN_int_az.getPosition();
+    // CAN_int_el.newMessage = false;
+    // CAN_int_el.getPosition();
 }
 
 void loop() {
@@ -97,65 +114,66 @@ void canSniff_el(const CAN_message_t &msg) {
     CAN_int_el.newMessage = true;
 }
 
-void sendPoint() {
-  if(count < CAN_int_az.trajectoryLength || count < CAN_int_el.trajectoryLength) {
-    //get data from trajectory array
-    position_az = CAN_int_az.trajectory[count];
-    position_el = CAN_int_el.trajectory[count];
-    // String str_pos = String(position);
+/**
+ * poll both controllers until they are done moving
+ * send status to see if it is done, then send position request to get current position
+ */
+void poll() {
+  // Send status requests
+  myTimer.end();
+  CANcommand_az = "6041,00,x0000r";
+  CANcommand_el = "6041,00,x0000r";
+  CANcommand_az.toCharArray(input_az, CANcommand_az.length() + 1);
+  CANcommand_el.toCharArray(input_el, CANcommand_el.length() + 1);
+  err_az = CAN_int_az.createMsg(input_az, &message_az);
+  err_el = CAN_int_el.createMsg(input_el, &message_el);
+  if(err_az > 0 || err_el > 0) {
+    Serial.print("error az traj:");
+    Serial.println(err_az);
+    Serial.print("error el traj:");
+    Serial.println(err_el);
+  }
+  else{
+    CAN_int_az.can.write(message_az);
+    CAN_int_el.can.write(message_el);
+  }
 
-    //create entire command (index, subindex, data in decimal format, write)
-    CANcommand_az = "607A,00,d" + String(position_az) + "w";
-    CANcommand_el = "607A,00,d" + String(position_el) + "w";
-    // int length = CANcommand.length() + 1;
-    // char input[length];
+  CAN_int_az.awaitResponse();
+  CAN_int_el.awaitResponse();
 
-    // convert string to character array
-    CANcommand_az.toCharArray(input_az, CANcommand_az.length() + 1);
-    CANcommand_el.toCharArray(input_el, CANcommand_el.length() + 1);
+  el_reached = CAN_int_el.targetReach();
+  az_reached = CAN_int_az.targetReach();
 
-    // send CAN message
-    // CAN_message_t message;
-    err_az = CAN_int_az.createMsg(input_az, &message_az);
-    err_el = CAN_int_el.createMsg(input_el, &message_el);
-    if(err_az > 0 || err_el > 0) {
-      Serial.print("error az:");
-      Serial.println(err_az);
-      Serial.print("error el:");
-      Serial.println(err_el);
+  CAN_int_az.newMessage = false;
+  CAN_int_az.getPosition();
+  CAN_int_el.newMessage = false;
+  CAN_int_el.getPosition();
+
+  CAN_int_az.trajectory[count] = CAN_int_az.position;
+  CAN_int_el.trajectory[count] = CAN_int_el.position;
+
+  if (el_reached && az_reached && finished_count == 0) {
+    finished_count = count;
+    count ++;
+    myTimer.begin(poll,10000);
+  }
+  else if(count > 200) {
+    // print both trajectories in Matlab input format
+    Serial.print("trajectory = [");
+    for (uint16_t m = 0; m < count; m++){
+      Serial.print(CAN_int_az.trajectory[m]);
+      Serial.print(",");
+      Serial.print(CAN_int_el.trajectory[m]);
+      Serial.println(";");
     }
-    else{
-      if(count < CAN_int_az.trajectoryLength){
-        // Serial.print("Sending Position: ");
-        // Serial.println(position_az);
-        // CAN_int_az.interpretMsg(message_az);
-        // Serial.println("Sending azimuth...");
-        CAN_int_az.can.write(message_az);
-      }
-      if(count < CAN_int_el.trajectoryLength){
-        // Serial.print("Sending Position: ");
-        // Serial.println(position);
-        // CAN_int_az.interpretMsg(message);
-        // Serial.println("Sending elevation...");
-        // CAN_int_el.interpretMsg(message_el);
-        CAN_int_el.can.write(message_el);
-      }
-    }
-    
-    // Serial.println(position);
-    count++; // increase counter
-  } // if
-  else {
-    Serial.println("ending timer...");
-
-    myTimer.end(); // end timer
-
-    // get new message instead of whats still in CAN buffer
-    CAN_int_az.newMessage = false;
-    CAN_int_az.getPosition();
-    CAN_int_el.newMessage = false;
-    CAN_int_el.getPosition();
-  } 
+    Serial.print(CAN_int_az.trajectory[count]);
+    Serial.print(",");
+    Serial.print(CAN_int_el.trajectory[count]);
+    Serial.println("];");
+  } else {
+    count ++;
+    myTimer.begin(poll,10000);
+  }
 }
 
 /**
@@ -170,16 +188,20 @@ void sendSinglePoint(double angle_az, double angle_el) {
   position_az = (int32_t) (angle_az * RAD_TO_TICKS);
   position_el = (int32_t) (angle_el * RAD_TO_TICKS);
 
+  Serial.print("input_az = ");
+  Serial.println(position_az);
+  Serial.print("input_el = ");
+  Serial.println(position_el);
+
   //create entire command (index, subindex, data in decimal format, write)
   CANcommand_az = "607A,00,d" + String(position_az) + "w";
   CANcommand_el = "607A,00,d" + String(position_el) + "w";
-
 
   // convert string to character array
   CANcommand_az.toCharArray(input_az, CANcommand_az.length() + 1);
   CANcommand_el.toCharArray(input_el, CANcommand_el.length() + 1);
 
-  // send CAN message
+  // send CAN position
   // CAN_message_t message;
   err_az = CAN_int_az.createMsg(input_az, &message_az);
   err_el = CAN_int_el.createMsg(input_el, &message_el);
@@ -193,8 +215,11 @@ void sendSinglePoint(double angle_az, double angle_el) {
     CAN_int_az.can.write(message_az);
     CAN_int_el.can.write(message_el);
   }
+  
+  CAN_int_az.awaitResponse();
+  CAN_int_el.awaitResponse();
 
-  // send CAN message
+  // send CAN contorlword
   // CAN_message_t message;           // FEDCBA9786543210    
   err_az = CAN_int_az.createMsg("6040,00,b000000001111111w", &message_az);
   err_el = CAN_int_el.createMsg("6040,00,b000000001111111w", &message_el);
@@ -208,8 +233,11 @@ void sendSinglePoint(double angle_az, double angle_el) {
     CAN_int_az.can.write(message_az);
     CAN_int_el.can.write(message_el);
   }
+  
+  CAN_int_az.awaitResponse();
+  CAN_int_el.awaitResponse();
 
-  // send CAN message
+  // send CAN controlword - activate new setpoint
   // CAN_message_t message;           // FEDCBA9786543210    
   err_az = CAN_int_az.createMsg("6040,00,b000000001101111w", &message_az);
   err_el = CAN_int_el.createMsg("6040,00,b000000001101111w", &message_el);
@@ -223,6 +251,9 @@ void sendSinglePoint(double angle_az, double angle_el) {
     CAN_int_az.can.write(message_az);
     CAN_int_el.can.write(message_el);
   }
+  
+  CAN_int_az.awaitResponse();
+  // CAN_int_el.awaitResponse();
 }
 
 /*
@@ -230,7 +261,7 @@ void sendSinglePoint(double angle_az, double angle_el) {
  */
 void resetTimer() {
   count = 0;
-  myTimer.begin(sendPoint, 10000);  // sendPoint to run at 100 Hz (in microseconds);
+  myTimer.begin(poll, 10000);  // poll to run at 100 Hz (in microseconds);
 }
 
 /*

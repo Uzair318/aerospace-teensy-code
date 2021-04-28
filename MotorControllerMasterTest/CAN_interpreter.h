@@ -24,12 +24,6 @@ class CAN_interpreter
     enum state_t{NotReadyToSwitchOn, SwitchOnDisabled, ReadyToSwitchOn, SwitchedOn, OperationEnabled,
       QuickStopActive, FaultReactionActive, Fault, notRecognized};
     state_t state;
-    // FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> *can1;
-    // FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> *can2;
-    
-
-
-
     CAN_message_t msg;
     uint8_t createMsg(char *input_ptr,CAN_message_t *msg_ptr);
     void interpretMsg(CAN_message_t msg_ptr);
@@ -49,6 +43,8 @@ class CAN_interpreter
     int32_t target;    // encoder increments
     char input[32];
 
+    bool targetReach();
+
     double T;
     double t = 0;
     double Tc;
@@ -57,9 +53,9 @@ class CAN_interpreter
 
   private:
     void canSniff(const CAN_message_t &msg);
-    CAN_message_t _res; // response that will be checked
     uint8_t err;
     double freq = 100; // Hz
+    CAN_message_t _res; // response that will be checked
     
 
     // for trajectory generation
@@ -486,6 +482,7 @@ void CAN_interpreter<can_T>::setResponse(CAN_message_t msg_ptr){
 // Delay until a new message is received
 template<typename can_T>
 void CAN_interpreter<can_T>::awaitResponse(){
+    newMessage = false;
     while(!newMessage){
         delay(10);
         // Serial.println("we love senior design!");        
@@ -591,10 +588,10 @@ void CAN_interpreter<can_T>::getPosition() {
         position += (int32_t) _res.buf[5] << 8u;
         position += (int32_t) _res.buf[6] << 16u;
         position += (int32_t) _res.buf[7] << 24u;
-        position -= home;
+        // position -= home;
 
-        Serial.print("Current Position: ");
-        Serial.println(position);
+        // Serial.print("Current Position: ");
+        // Serial.println(position);
     }
 }
 
@@ -694,4 +691,23 @@ uint8_t CAN_interpreter<can_T>::genTrajectory(double target_rad, bool absolute =
         }
     }
     return 0;
+}
+
+template<typename can_T>
+bool CAN_interpreter<can_T>::targetReach(){
+    
+    uint32_t word = (uint32_t) _res.buf[4];
+    word += (uint32_t) _res.buf[5] << 8u;
+    word += (uint32_t) _res.buf[6] << 16u;
+    word += (uint32_t) _res.buf[7] << 24u;
+
+    // bit 10 is target reached
+                  //A9876543210
+    word = word & 0b10000000000;
+
+    if(word == 0b10000000000) {
+        return true;
+    } else {
+        return false;
+    }
 }
