@@ -15,17 +15,23 @@ int32_t position_az, position_el;
 String CANcommand_az, CANcommand_el;
 CAN_message_t message_az, message_el;
 uint16_t err_az, err_el;
-bool el_reached = true, az_reached = false;
+bool el_reached = true, az_reached = false, printTrajectory = false;
+// for reading points
+String incomingData, temp;
+char incomingByte;
+bool newCoordinate = false; // initially there is no new coordinate
+bool finalCoordinate = false; //initially not on final coordinate
+float az_target, el_target;
 
 void setup() {
     Serial.begin(115200);
-    while(!Serial.available()){}  // pause until we want it to start
+    // while(!Serial.available()){}  // pause until we want it to start
     Serial.println("Starting");
+
+    clearSerial();
 
     uint8_t startupResponse = CAN_int_az.startup();
     Serial.println("Azimuth CAN setup finished");
-    Serial.println();
-    Serial.println();
     Serial.println();
     Serial.println();
     delay(500);
@@ -34,72 +40,57 @@ void setup() {
     Serial.println("Elevation CAN setup finished");
     Serial.println();
     Serial.println();
-    Serial.println();
-    Serial.println();
+    Serial.println("Ready for inputs")
 
     // sendSinglePoint(-1,-1);
-    Serial.println("Point 1");
-    sendSinglePoint(.3,0);
-    count = 0;
-    myTimer.begin(poll, 10000);  // poll to run at 100 Hz (in microseconds)
-    delay(10000);
-
-    Serial.println("Point 2");
-    sendSinglePoint(0,.3);
-    count = 0;
-    myTimer.begin(poll, 10000);  // poll to run at 100 Hz (in microseconds)
-    delay(4000);
-
-    Serial.println("Point 3");
-    sendSinglePoint(-.3,0);
-    count = 0;
-    myTimer.begin(poll, 10000);  // poll to run at 100 Hz (in microseconds)
-    delay(4000);
-
-    Serial.println("Point 4");
-    sendSinglePoint(0,-.3);
-    count = 0;
-    myTimer.begin(poll, 10000);  // poll to run at 100 Hz (in microseconds)
-    // delay(5000);
-
-    // CAN_int_az.newMessage = false;
-    // CAN_int_az.getPosition();
-    // CAN_int_el.newMessage = false;
-    // CAN_int_el.getPosition();
+    // Serial.println("Point 1");
+    // sendSinglePoint(.3,0);
+    // count = 0;
+    // myTimer.begin(poll, 10000);  // poll to run at 100 Hz (in microseconds)
 }
 
 void loop() {
-  CAN_int_az.can.events();
-  CAN_int_el.can.events();
+  if (Serial.available()) {
+    while(Serial.available()) {
+      incomingByte = Serial.read();
+      incomingData += incomingByte;
+      newCoordinate = true;
+    }
 
-  // if(Serial.available()){
-  //   CAN_int_az.genTrajectory(0.2, true);
-  //   Serial.println(CAN_int_az.trajectoryLength);
-  //   Serial.println(CAN_int_az.T);
-  //   Serial.println(CAN_int_az.Tc);
-  //   // myTimer.begin(sendPoint, 10000);  // sendPoint to run at 100 kHz (in microseconds)
-  //   // resetTimer();
-  //   Serial.flush();
-  //   delay(2000);
+    if(newCoordinate) {
+      // Serial.print(incomingData);
 
-  // }
-//  if (Serial.available()) {
-//    String input = Serial.readString();
-//    input.toCharArray(command, 32);
-//    CAN_message_t msg;
-//    int err = CAN_int_az.createMsg(command, &msg);   
-//    
-//    if(err > 0) {
-//      Serial.print("error:");
-//      Serial.println(err);
-//    } else {
-//      Serial.println("Sending...");
-//      CAN_int_az.interpretMsg(msg);
-//      can1.write(msg);
-//    }
-//  }
+      // parse azimuth
+      temp = incomingData.substring(0,incomingData.indexOf(","));
+      az_target = temp.toFloat();
+
+      // parse elevation
+      temp = incomingData.substring(incomingData.indexOf(",")+1);
+      el_target = temp.toFloat();
+
+      // Serial.println(az_target);
+      // Serial.println(el_target);
+      // Serial.println();
+
+      newCoordinate = false;
+      incomingData = "";
+
+      sendSinglePoint(az_target,el_target);
+      clearSerial();
+    }
+  }
+
+  // sendSinglePoint(az_target,el_target);
 }
 
+// Clear the serial buffer
+void clearSerial() {
+  while(Serial.available()) {
+    incomingByte = Serial.read();
+  }
+}
+
+// Azimuth CAN callback
 void canSniff_az(const CAN_message_t &msg) {
     // Serial.println("Received...");
     // CAN_int_az.interpretMsg(msg);
@@ -107,6 +98,7 @@ void canSniff_az(const CAN_message_t &msg) {
     CAN_int_az.newMessage = true;
 }
 
+// Elevation CAN callback
 void canSniff_el(const CAN_message_t &msg) {
     // Serial.println("Received...");
     // CAN_int_az.interpretMsg(msg);
@@ -157,7 +149,7 @@ void poll() {
     count ++;
     myTimer.begin(poll,10000);
   }
-  else if(count > 200) {
+  else if(count > 200 && printTrajectory) {
     // print both trajectories in Matlab input format
     Serial.print("trajectory = [");
     for (uint16_t m = 0; m < count; m++){
@@ -183,15 +175,17 @@ void poll() {
  *  - create commands
  *  - send single point to each controller
  */ 
-void sendSinglePoint(double angle_az, double angle_el) {
+void sendSinglePoint(float angle_az, float angle_el) {
   // convert angles to number of encoder ticks
   position_az = (int32_t) (angle_az * RAD_TO_TICKS);
   position_el = (int32_t) (angle_el * RAD_TO_TICKS);
 
-  Serial.print("input_az = ");
-  Serial.println(position_az);
-  Serial.print("input_el = ");
-  Serial.println(position_el);
+  if(printTrajectory) {
+    Serial.print("input_az = ");
+    Serial.println(position_az);
+    Serial.print("input_el = ");
+    Serial.println(position_el);
+  }
 
   //create entire command (index, subindex, data in decimal format, write)
   CANcommand_az = "607A,00,d" + String(position_az) + "w";
