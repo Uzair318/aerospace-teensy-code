@@ -40,7 +40,7 @@ void setup() {
     Serial.println("Elevation CAN setup finished");
     Serial.println();
     Serial.println();
-    Serial.println("Ready for inputs")
+    Serial.println("Ready for inputs  ")
 
     // sendSinglePoint(-1,-1);
     // Serial.println("Point 1");
