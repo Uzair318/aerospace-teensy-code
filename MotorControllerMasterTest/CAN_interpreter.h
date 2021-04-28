@@ -303,8 +303,14 @@ uint8_t CAN_interpreter<can_T>::startup(){
     // this->interpretMsg(_res);
     this->getState(_res);
 
+    // counter to break out of fault loop
+    uint8_t faultCounter = 0;
+
     // while statusword is not "operation enabled" 
     while(state != OperationEnabled) {
+        if (faultCounter > 10) {
+            return 2; // 2 flag says
+        }
         // transition from the current state to the next state (and verify?)
         switch(state) {
             case NotReadyToSwitchOn:
@@ -396,6 +402,7 @@ uint8_t CAN_interpreter<can_T>::startup(){
                     // this->interpretMsg(msg);
                     can.write(msg);
                     this->awaitResponse();
+                    faultCounter++;
                 }
                 break;
             case Fault:
@@ -411,6 +418,7 @@ uint8_t CAN_interpreter<can_T>::startup(){
                     // this->interpretMsg(msg);
                     can.write(msg);
                     this->awaitResponse();
+                    faultCounter++;
                 }
                 break;
             default:

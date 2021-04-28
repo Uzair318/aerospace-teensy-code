@@ -36,11 +36,21 @@ void setup() {
     Serial.println();
     delay(500);
 
+    // startup response will return 2 if stuck in fault loop and 1 if syntax error (should never happen for existing features)
+    while(startupResponse != 0) {
+      startupResponse = CAN_int_az.startup();
+    }
+
     startupResponse = CAN_int_el.startup();
     Serial.println("Elevation CAN setup finished");
     Serial.println();
     Serial.println();
     Serial.println("Ready for inputs  ")
+
+    // startup response will return 2 if stuck in fault loop and 1 if syntax error (should never happen for existing features)
+    while(startupResponse != 0) {
+      startupResponse = CAN_int_el.startup();
+    }
 
     // sendSinglePoint(-1,-1);
     // Serial.println("Point 1");
