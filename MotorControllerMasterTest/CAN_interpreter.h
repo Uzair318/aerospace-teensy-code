@@ -308,6 +308,7 @@ uint8_t CAN_interpreter<can_T>::startup(){
 
     // while statusword is not "operation enabled" 
     while(state != OperationEnabled) {
+        faultCounter ++;
         if (faultCounter > 10) {
             return 2; // 2 flag says
         }
@@ -426,6 +427,7 @@ uint8_t CAN_interpreter<can_T>::startup(){
             
         }
 
+        delay(100);
         // send statusword   
         // Serial.println("Checking Statusword...");
         strcpy(input, "6041,00,x0000r");

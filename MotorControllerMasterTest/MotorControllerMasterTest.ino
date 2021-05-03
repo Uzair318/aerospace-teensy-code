@@ -9,13 +9,14 @@ CAN_interpreter<FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16>> CAN_int_el(&canSniff_
 
 char command[32], input_az[32], input_el[32]; // command[] is used in loop()
 uint16_t count = 0, finished_count = 0;
+uint8_t startupResponse = 1;
 
 // for sendPoint
 int32_t position_az, position_el;
 String CANcommand_az, CANcommand_el;
 CAN_message_t message_az, message_el;
 uint16_t err_az, err_el;
-bool el_reached = true, az_reached = false, printTrajectory = false;
+bool el_reached = true, az_reached = false, printTrajectory = true;
 // for reading points
 String incomingData, temp;
 char incomingByte;
@@ -30,27 +31,8 @@ void setup() {
 
     clearSerial();
 
-    uint8_t startupResponse = CAN_int_az.startup();
-    Serial.println("Azimuth CAN setup finished");
-    Serial.println();
-    Serial.println();
-    delay(500);
+    init_controllers();
 
-    // startup response will return 2 if stuck in fault loop and 1 if syntax error (should never happen for existing features)
-    while(startupResponse != 0) {
-      startupResponse = CAN_int_az.startup();
-    }
-
-    startupResponse = CAN_int_el.startup();
-    Serial.println("Elevation CAN setup finished");
-    Serial.println();
-    Serial.println();
-    Serial.println("Ready for inputs  ")
-
-    // startup response will return 2 if stuck in fault loop and 1 if syntax error (should never happen for existing features)
-    while(startupResponse != 0) {
-      startupResponse = CAN_int_el.startup();
-    }
 
     // sendSinglePoint(-1,-1);
     // Serial.println("Point 1");
@@ -91,6 +73,29 @@ void loop() {
   }
 
   // sendSinglePoint(az_target,el_target);
+}
+
+// setup controllers / clear faults
+void init_controllers() {
+  startupResponse = CAN_int_az.startup();
+    // startup response will return 2 if stuck in fault loop and 1 if syntax error (should never happen for existing features)
+    while(startupResponse != 0) {
+      startupResponse = CAN_int_az.startup();
+    }
+    Serial.println("Azimuth CAN setup finished");
+    Serial.println();
+    Serial.println();
+    delay(500);
+
+    startupResponse = CAN_int_el.startup();
+    // startup response will return 2 if stuck in fault loop and 1 if syntax error (should never happen for existing features)
+    while(startupResponse != 0) {
+      startupResponse = CAN_int_el.startup();
+    }
+    Serial.println("Elevation CAN setup finished");
+    Serial.println();
+    Serial.println();
+    Serial.println("Ready for inputs. Format az,el");
 }
 
 // Clear the serial buffer
@@ -159,19 +164,30 @@ void poll() {
     count ++;
     myTimer.begin(poll,10000);
   }
-  else if(count > 200 && printTrajectory) {
-    // print both trajectories in Matlab input format
-    Serial.print("trajectory = [");
-    for (uint16_t m = 0; m < count; m++){
-      Serial.print(CAN_int_az.trajectory[m]);
+  else if(count > 200) {
+    init_controllers();
+
+    if(printTrajectory) {
+      
+      Serial.println("----DATA START----");
+      // print both trajectories and targets in Matlab input format
+      Serial.print("input_az = ");
+      Serial.println(position_az);
+      Serial.print("input_el = ");
+      Serial.println(position_el);
+      Serial.print("trajectory = [");
+
+      for (uint16_t m = 0; m < count; m++){
+        Serial.print(CAN_int_az.trajectory[m]);
+        Serial.print(",");
+        Serial.print(CAN_int_el.trajectory[m]);
+        Serial.println(";");
+      }
+      Serial.print(CAN_int_az.trajectory[count]);
       Serial.print(",");
-      Serial.print(CAN_int_el.trajectory[m]);
-      Serial.println(";");
+      Serial.print(CAN_int_el.trajectory[count]);
+      Serial.println("];");
     }
-    Serial.print(CAN_int_az.trajectory[count]);
-    Serial.print(",");
-    Serial.print(CAN_int_el.trajectory[count]);
-    Serial.println("];");
   } else {
     count ++;
     myTimer.begin(poll,10000);
@@ -189,13 +205,6 @@ void sendSinglePoint(float angle_az, float angle_el) {
   // convert angles to number of encoder ticks
   position_az = (int32_t) (angle_az * RAD_TO_TICKS);
   position_el = (int32_t) (angle_el * RAD_TO_TICKS);
-
-  if(printTrajectory) {
-    Serial.print("input_az = ");
-    Serial.println(position_az);
-    Serial.print("input_el = ");
-    Serial.println(position_el);
-  }
 
   //create entire command (index, subindex, data in decimal format, write)
   CANcommand_az = "607A,00,d" + String(position_az) + "w";
@@ -257,7 +266,9 @@ void sendSinglePoint(float angle_az, float angle_el) {
   }
   
   CAN_int_az.awaitResponse();
-  // CAN_int_el.awaitResponse();
+  CAN_int_el.awaitResponse();
+
+  resetTimer();
 }
 
 /*
