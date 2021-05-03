@@ -1,235 +1,288 @@
 #include "CAN_interpreter.h"
 
+IntervalTimer myTimer;
+
 FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16> can1;
-CAN_interpreter CAN_int;
-char command[32];
-void canSniff(const CAN_message_t &msg);
+FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16> can2;
+CAN_interpreter<FlexCAN_T4<CAN1, RX_SIZE_256, TX_SIZE_16>> CAN_int_az(&canSniff_az, can1);
+CAN_interpreter<FlexCAN_T4<CAN2, RX_SIZE_256, TX_SIZE_16>> CAN_int_el(&canSniff_el, can2);
+
+char command[32], input_az[32], input_el[32]; // command[] is used in loop()
+uint16_t count = 0, finished_count = 0;
+uint8_t startupResponse = 1;
+
+// for sendPoint
+int32_t position_az, position_el;
+String CANcommand_az, CANcommand_el;
+CAN_message_t message_az, message_el;
+uint16_t err_az, err_el;
+bool el_reached = true, az_reached = false, printTrajectory = true;
+// for reading points
+String incomingData, temp;
+char incomingByte;
+bool newCoordinate = false; // initially there is no new coordinate
+bool finalCoordinate = false; //initially not on final coordinate
+float az_target, el_target;
 
 void setup() {
     Serial.begin(115200);
-    can1.begin();
-    can1.setBaudRate(250000);
-    can1.enableFIFO();
-    can1.enableFIFOInterrupt();
-    can1.onReceive(FIFO, canSniff);
-    
-//    delay(1000);
-    Serial.println("CAN setup finished");
-//    delay(500);
-  
+    // while(!Serial.available()){}  // pause until we want it to start
+    Serial.println("Starting");
 
+    clearSerial();
+
+    init_controllers();
+
+
+    // sendSinglePoint(-1,-1);
+    // Serial.println("Point 1");
+    // sendSinglePoint(.3,0);
+    // count = 0;
+    // myTimer.begin(poll, 10000);  // poll to run at 100 Hz (in microseconds)
 }
 
 void loop() {
-  can1.events();
-    if (Serial.available()) {
-      String input = Serial.readString();
-      input.toCharArray(command, 32);
-      CAN_message_t msg;
-      int err = CAN_int.createMsg(command, &msg);   
-      Serial.println("Sending...");
-      CAN_int.interpretMsg(msg);
-      if(err > 0) {
-        Serial.print("error:");
-        Serial.println(err);
-      } else {
-        can1.write(msg);
-      }
-      
-//        char c = Serial.read();
-//        if (c == 'a') {
-//            Serial.println("Sending ...");
-//            CAN_message_t msg;
-//            
-//            msg.len = 8;
-//            // Write «Target position» (Index 0x607A, Subindex 0x00: Data 0x000008AE  2222dec) to node 1:
-//            msg.id = 0x601;  // 0x600 + node_id (SDO client to server)
-//            msg.buf[0] = 0x22;    // ccs = 2 (read object)
-//            msg.buf[1] = 0x7A;  // index low byte
-//            msg.buf[2] = 0x60;  // index high byte
-//            msg.buf[3] = 0x00;  // subindex
-//            msg.buf[4] = 0x00;
-//            msg.buf[5] = 0x7D;
-//            msg.buf[6] = 0x00;
-//            msg.buf[7] = 0x00;
-//
-//            can1.write(msg);
-//            c = 'z';
-//        } else if(c == 'b') {
-//            Serial.println("Sending ...");
-//            CAN_message_t msg;
-//            msg.len = 8;
-//            // Read «Position actual value» (Index 0x6064, Subindex 0x00) from node 1:
-//            msg.id = 0x601;  // 0x600 + node_id (SDO client to server)
-//            msg.buf[0] = 0x40;    // ccs = 2 (read object)
-//            msg.buf[1] = 0x64;  // index low byte
-//            msg.buf[2] = 0x60;  // index high byte
-//            msg.buf[3] = 0x00;  // subindex
-//            msg.buf[4] = 0x00;
-//            msg.buf[5] = 0x00;
-//            msg.buf[6] = 0x00;
-//            msg.buf[7] = 0x00;
-//            can1.write(msg);
-//            c = 'z';
-//        } else if(c == 's') {
-//            Serial.println("Sending setup command");
-//            CAN_message_t msg;
-//            msg.len = 8;
-//            // 
-//            msg.id = 0x0601;  // 0x600 + node_id (SDO client to server)
-//            msg.buf[0] = 0x22;    // ccs = 1 (write object)
-//            msg.buf[1] = 0x40;  // index low byte
-//            msg.buf[2] = 0x60;  // index high byte
-//            msg.buf[3] = 0x00;  // subindex
-//            msg.buf[4] = 0b1011;//0x0F;
-//            msg.buf[5] = 0;
-//            msg.buf[6] = 0;
-//            msg.buf[7] = 0;
-//            can1.write(msg);
-//
-//            Serial.println("Check status of controller");
-//            msg.len = 8;
-//            // 
-//            msg.id = 0x0601;      // 0x600 + node_id (SDO client to server)
-//            msg.buf[0] = 0x40;    // ccs = 2 (read object)
-//            msg.buf[1] = 0x41;  // index low byte
-//            msg.buf[2] = 0x60;  // index high byte
-//            msg.buf[3] = 0;     // subindex
-//            msg.buf[4] = 0;
-//            msg.buf[5] = 0;
-//            msg.buf[6] = 0;
-//            msg.buf[7] = 0;
-//            can1.write(msg);
-//        } else if(c == 'x') {
-//            Serial.println("Sending SHUTDOWN command");
-//            CAN_message_t msg;
-//            msg.len = 8;
-//            // 
-//            msg.id = 0x0601;  // 0x600 + node_id (SDO client to server)
-//            msg.buf[0] = 0x22;    // ccs = 1 (write object)
-//            msg.buf[1] = 0x40;  // index low byte
-//            msg.buf[2] = 0x60;  // index high byte
-//            msg.buf[3] = 0x00;  // subindex
-//            msg.buf[4] = 0;
-//            msg.buf[5] = 0;
-//            msg.buf[6] = 0;
-//            msg.buf[7] = 0;
-//            can1.write(msg);
-//            
-//            Serial.println("Check status of controller");
-//            msg.len = 8;
-//            // 
-//            msg.id = 0x0601;      // 0x600 + node_id (SDO client to server)
-//            msg.buf[0] = 0x40;    // ccs = 2 (read object)
-//            msg.buf[1] = 0x41;  // index low byte
-//            msg.buf[2] = 0x60;  // index high byte
-//            msg.buf[3] = 0;     // subindex
-//            msg.buf[4] = 0;
-//            msg.buf[5] = 0;
-//            msg.buf[6] = 0;
-//            msg.buf[7] = 0;
-//            can1.write(msg);
-//        } else if(c == 'v') {
-//            Serial.println("Sending Velocity Demand Value");
-//            CAN_message_t msg;
-//            msg.len = 8;
-////            // Send Velocity Demand Value
-////            msg.id = 0x601;  // 0x600 + node_id (SDO client to server)
-////            msg.buf[0] = 0x22;    // ccs = 1 (write object)
-////            msg.buf[1] = 0x6B;  // index low byte
-////            msg.buf[2] = 0x60;  // index high byte
-////            msg.buf[3] = 0x00;  // subindex
-////            msg.buf[4] = 0x64;
-////            msg.buf[5] = 0x00;
-////            msg.buf[6] = 0x00;
-////            msg.buf[7] = 0x00;
-////            can1.write(msg);
-////            c = 'z';
-//            // Send Velocity Demand Value
-//            msg.id = 0x601;  // 0x600 + node_id (SDO client to server)
-//            msg.buf[0] = 0x22;    // ccs = 1 (write object)
-//            msg.buf[1] = 0xFF;  // index low byte
-//            msg.buf[2] = 0x60;  // index high byte
-//            msg.buf[3] = 0x00;  // subindex
-//            msg.buf[4] = 0xE8;
-//            msg.buf[5] = 0x03;
-//            msg.buf[6] = 0x00;
-//            msg.buf[7] = 0x00;
-//            can1.write(msg);
-//            c = 'z';
-//        } else if(c == 'r') {
-//            Serial.println("Sending ...");
-//            CAN_message_t msg;
-//            msg.len = 8;
-//            // Get Velocity Actual Value
-//            msg.id = 0x601;  // 0x600 + node_id (SDO client to server)
-//            msg.buf[0] = 0x40;    // ccs = 2 (read object)
-//            msg.buf[1] = 0x6C;  // index low byte
-//            msg.buf[2] = 0x60;  // index high byte
-//            msg.buf[3] = 0x00;  // subindex
-//            msg.buf[4] = 0x00;
-//            msg.buf[5] = 0x00;
-//            msg.buf[6] = 0x00;
-//            msg.buf[7] = 0x00;
-//            can1.write(msg);
-//            c = 'z';
-//        } else if(c == 'm') {
-//            Serial.println("Sending request for Mode of Operation");
-//            CAN_message_t msg;
-//            msg.len = 8;
-//            // Mode of Operation
-//            msg.id = 0x601;  // 0x600 + node_id (SDO client to server)
-//            msg.buf[0] = 0x40;    // ccs = 2 (read object)
-//            msg.buf[1] = 0x61;  // index low byte
-//            msg.buf[2] = 0x60;  // index high byte
-//            msg.buf[3] = 0x00;  // subindex
-//            msg.buf[4] = 0x00;
-//            msg.buf[5] = 0x00;
-//            msg.buf[6] = 0x00;
-//            msg.buf[7] = 0x00;
-//            can1.write(msg);
-//            c = 'z';
-//        } else if(c == 'n') {
-//            Serial.println("Setting Mode of Operation to Velocity");
-//            CAN_message_t msg;
-//            msg.len = 8;
-//            // Mode of Operation
-//            msg.id = 0x601;  // 0x600 + node_id (SDO client to server)
-//            msg.buf[0] = 0x22;    // ccs = 2 (read object)
-//            msg.buf[1] = 0x60;  // index low byte
-//            msg.buf[2] = 0x60;  // index high byte
-//            msg.buf[3] = 0x00;  // subindex
-//            msg.buf[4] = 0x03;
-//            msg.buf[5] = 0x00;
-//            msg.buf[6] = 0x00;
-//            msg.buf[7] = 0x00;
-//            can1.write(msg);
-//            c = 'z';
-//        }
+  if (Serial.available()) {
+    while(Serial.available()) {
+      incomingByte = Serial.read();
+      incomingData += incomingByte;
+      newCoordinate = true;
     }
+
+    if(newCoordinate) {
+      // Serial.print(incomingData);
+
+      // parse azimuth
+      temp = incomingData.substring(0,incomingData.indexOf(","));
+      az_target = temp.toFloat();
+
+      // parse elevation
+      temp = incomingData.substring(incomingData.indexOf(",")+1);
+      el_target = temp.toFloat();
+
+      // Serial.println(az_target);
+      // Serial.println(el_target);
+      // Serial.println();
+
+      newCoordinate = false;
+      incomingData = "";
+
+      sendSinglePoint(az_target,el_target);
+      clearSerial();
+    }
+  }
+
+  // sendSinglePoint(az_target,el_target);
 }
 
-void canSniff(const CAN_message_t &msg) {
-//    Serial.println("Interrupted");
-//    Serial.print("MB ");
-//    Serial.print(msg.mb);
-//    Serial.print(" OVERRUN: ");
-//    Serial.print(msg.flags.overrun);
-//    Serial.print(" LEN: ");
-//    Serial.print(msg.len);
-//    Serial.print(" EXT: ");
-//    Serial.print(msg.flags.extended);
-//    Serial.print(" TS: ");
-//    Serial.print(msg.timestamp);
-//    Serial.print(" ID: ");
-//    Serial.print(msg.id, HEX);
-//    Serial.print(" Buffer: ");
-//    for ( uint8_t i = 0; i < msg.len; i++ ) {
-//        Serial.print(msg.buf[i], HEX);
-//        Serial.print(" ");
-//    }
-//    Serial.println();
-    Serial.println("Received...");
-    CAN_int.interpretMsg(msg);
+// setup controllers / clear faults
+void init_controllers() {
+  startupResponse = CAN_int_az.startup();
+    // startup response will return 2 if stuck in fault loop and 1 if syntax error (should never happen for existing features)
+    while(startupResponse != 0) {
+      startupResponse = CAN_int_az.startup();
+    }
+    Serial.println("Azimuth CAN setup finished");
+    Serial.println();
+    Serial.println();
+    delay(500);
 
+    startupResponse = CAN_int_el.startup();
+    // startup response will return 2 if stuck in fault loop and 1 if syntax error (should never happen for existing features)
+    while(startupResponse != 0) {
+      startupResponse = CAN_int_el.startup();
+    }
+    Serial.println("Elevation CAN setup finished");
+    Serial.println();
+    Serial.println();
+    Serial.println("Ready for inputs. Format az,el");
+}
+
+// Clear the serial buffer
+void clearSerial() {
+  while(Serial.available()) {
+    incomingByte = Serial.read();
+  }
+}
+
+// Azimuth CAN callback
+void canSniff_az(const CAN_message_t &msg) {
+    // Serial.println("Received...");
+    // CAN_int_az.interpretMsg(msg);
+    CAN_int_az.setResponse(msg);
+    CAN_int_az.newMessage = true;
+}
+
+// Elevation CAN callback
+void canSniff_el(const CAN_message_t &msg) {
+    // Serial.println("Received...");
+    // CAN_int_az.interpretMsg(msg);
+    CAN_int_el.setResponse(msg);
+    CAN_int_el.newMessage = true;
+}
+
+/**
+ * poll both controllers until they are done moving
+ * send status to see if it is done, then send position request to get current position
+ */
+void poll() {
+  // Send status requests
+  myTimer.end();
+  CANcommand_az = "6041,00,x0000r";
+  CANcommand_el = "6041,00,x0000r";
+  CANcommand_az.toCharArray(input_az, CANcommand_az.length() + 1);
+  CANcommand_el.toCharArray(input_el, CANcommand_el.length() + 1);
+  err_az = CAN_int_az.createMsg(input_az, &message_az);
+  err_el = CAN_int_el.createMsg(input_el, &message_el);
+  if(err_az > 0 || err_el > 0) {
+    Serial.print("error az traj:");
+    Serial.println(err_az);
+    Serial.print("error el traj:");
+    Serial.println(err_el);
+  }
+  else{
+    CAN_int_az.can.write(message_az);
+    CAN_int_el.can.write(message_el);
+  }
+
+  CAN_int_az.awaitResponse();
+  CAN_int_el.awaitResponse();
+
+  el_reached = CAN_int_el.targetReach();
+  az_reached = CAN_int_az.targetReach();
+
+  CAN_int_az.newMessage = false;
+  CAN_int_az.getPosition();
+  CAN_int_el.newMessage = false;
+  CAN_int_el.getPosition();
+
+  CAN_int_az.trajectory[count] = CAN_int_az.position;
+  CAN_int_el.trajectory[count] = CAN_int_el.position;
+
+  if (el_reached && az_reached && finished_count == 0) {
+    finished_count = count;
+    count ++;
+    myTimer.begin(poll,10000);
+  }
+  else if(count > 200) {
+    init_controllers();
+
+    if(printTrajectory) {
+      
+      Serial.println("----DATA START----");
+      // print both trajectories and targets in Matlab input format
+      Serial.print("input_az = ");
+      Serial.println(position_az);
+      Serial.print("input_el = ");
+      Serial.println(position_el);
+      Serial.print("trajectory = [");
+
+      for (uint16_t m = 0; m < count; m++){
+        Serial.print(CAN_int_az.trajectory[m]);
+        Serial.print(",");
+        Serial.print(CAN_int_el.trajectory[m]);
+        Serial.println(";");
+      }
+      Serial.print(CAN_int_az.trajectory[count]);
+      Serial.print(",");
+      Serial.print(CAN_int_el.trajectory[count]);
+      Serial.println("];");
+    }
+  } else {
+    count ++;
+    myTimer.begin(poll,10000);
+  }
+}
+
+/**
+ * params: az and el angles in rad
+ * needs to:
+ *  - convert them to ticks
+ *  - create commands
+ *  - send single point to each controller
+ */ 
+void sendSinglePoint(float angle_az, float angle_el) {
+  // convert angles to number of encoder ticks
+  position_az = (int32_t) (angle_az * RAD_TO_TICKS);
+  position_el = (int32_t) (angle_el * RAD_TO_TICKS);
+
+  //create entire command (index, subindex, data in decimal format, write)
+  CANcommand_az = "607A,00,d" + String(position_az) + "w";
+  CANcommand_el = "607A,00,d" + String(position_el) + "w";
+
+  // convert string to character array
+  CANcommand_az.toCharArray(input_az, CANcommand_az.length() + 1);
+  CANcommand_el.toCharArray(input_el, CANcommand_el.length() + 1);
+
+  // send CAN position
+  // CAN_message_t message;
+  err_az = CAN_int_az.createMsg(input_az, &message_az);
+  err_el = CAN_int_el.createMsg(input_el, &message_el);
+  if(err_az > 0 || err_el > 0) {
+    Serial.print("error az traj:");
+    Serial.println(err_az);
+    Serial.print("error el traj:");
+    Serial.println(err_el);
+  }
+  else{
+    CAN_int_az.can.write(message_az);
+    CAN_int_el.can.write(message_el);
+  }
+  
+  CAN_int_az.awaitResponse();
+  CAN_int_el.awaitResponse();
+
+  // send CAN contorlword
+  // CAN_message_t message;           // FEDCBA9786543210    
+  err_az = CAN_int_az.createMsg("6040,00,b000000001111111w", &message_az);
+  err_el = CAN_int_el.createMsg("6040,00,b000000001111111w", &message_el);
+  if(err_az > 0 || err_el > 0) {
+    Serial.print("error az:");
+    Serial.println(err_az);
+    Serial.print("error el:");
+    Serial.println(err_el);
+  }
+  else{
+    CAN_int_az.can.write(message_az);
+    CAN_int_el.can.write(message_el);
+  }
+  
+  CAN_int_az.awaitResponse();
+  CAN_int_el.awaitResponse();
+
+  // send CAN controlword - activate new setpoint
+  // CAN_message_t message;           // FEDCBA9786543210    
+  err_az = CAN_int_az.createMsg("6040,00,b000000001101111w", &message_az);
+  err_el = CAN_int_el.createMsg("6040,00,b000000001101111w", &message_el);
+  if(err_az > 0 || err_el > 0) {
+    Serial.print("error az:");
+    Serial.println(err_az);
+    Serial.print("error el:");
+    Serial.println(err_el);
+  }
+  else{
+    CAN_int_az.can.write(message_az);
+    CAN_int_el.can.write(message_el);
+  }
+  
+  CAN_int_az.awaitResponse();
+  CAN_int_el.awaitResponse();
+
+  resetTimer();
+}
+
+/*
+ * Reset timer and counter
+ */
+void resetTimer() {
+  count = 0;
+  myTimer.begin(poll, 10000);  // poll to run at 100 Hz (in microseconds);
+}
+
+/*
+ * updateInterval updates the period for the interrupt frequency
+ * interval given in microseconds
+ */
+void updateInterval(float interval) {
+  myTimer.update(interval);
 }
